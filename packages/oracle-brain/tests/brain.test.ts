@@ -63,11 +63,14 @@ describe("policy", () => {
 });
 
 describe("402 challenge", () => {
-  it("includes bazaar method and public url", () => {
+  it("includes bazaar method, schema, and public url", () => {
     const tool = requireTool("oracle_ask");
     const pr = buildPaymentRequired({ env, tool, priceUsd: clampPrice(tool, undefined, 25) });
     expect(pr.x402Version).toBe(2);
-    expect(pr.extensions.bazaar.info.input.method).toBe("POST");
+    const input = pr.extensions.bazaar.info.input as { method?: string; bodyType?: string };
+    expect(input.method).toBe("POST");
+    expect(input.bodyType).toBe("json");
+    expect(pr.extensions.bazaar.schema?.$schema).toMatch(/json-schema/);
     expect(pr.resource.url).toBe("http://127.0.0.1:4021/api/consult/oracle_ask");
     expect(pr.resource.serviceName.length).toBeLessThanOrEqual(32);
     expect(pr.resource.description.length).toBeLessThanOrEqual(500);

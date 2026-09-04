@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@x402/extensions": "^2.25.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {

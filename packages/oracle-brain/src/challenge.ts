@@ -1,3 +1,4 @@
+import { declareDiscoveryExtension } from "@x402/extensions/bazaar";
 import { PAID_TOOLS, type OracleToolSpec } from "./catalog.js";
 import { usdToAtomic, usdcForNetwork, type OracleEnv } from "./env.js";
 import { clampPrice } from "./catalog.js";
@@ -14,17 +15,7 @@ export type PaymentAccept = {
 
 export type BazaarExtension = {
   bazaar: {
-    info: {
-      input: {
-        type: "http" | "mcp";
-        method?: "GET" | "POST";
-        bodyType?: "json";
-        queryParams?: Record<string, unknown>;
-        body?: Record<string, unknown>;
-        toolName?: string;
-      };
-      output: { example: Record<string, unknown> };
-    };
+    info: Record<string, unknown>;
     schema?: Record<string, unknown>;
   };
 };
@@ -43,38 +34,43 @@ export type PaymentRequired = {
   extensions: BazaarExtension;
 };
 
-export function bazaarForTool(tool: OracleToolSpec, transport: "http" | "mcp"): BazaarExtension {
-  if (transport === "mcp") {
-    return {
-      bazaar: {
-        info: {
-          input: { type: "mcp", toolName: tool.name },
-          output: { example: tool.outputExample },
-        },
-        schema: {
-          type: "object",
-          properties: Object.fromEntries(
-            Object.keys(tool.inputExample).map((k) => [k, { type: "string" }]),
-          ),
-        },
-      },
+function inputSchemaFor(tool: OracleToolSpec): {
+  properties: Record<string, { type: string; description?: string }>;
+  required?: string[];
+} {
+  const keys = Object.keys(tool.inputExample);
+  const properties: Record<string, { type: string; description?: string }> = {};
+  for (const k of keys) {
+    const v = tool.inputExample[k];
+    properties[k] = {
+      type: Array.isArray(v) ? "array" : typeof v === "number" ? "number" : "string",
     };
   }
-  const isGet = tool.httpMethod === "GET";
   return {
-    bazaar: {
-      info: {
-        input: {
-          type: "http",
-          method: tool.httpMethod,
-          ...(isGet
-            ? { queryParams: tool.inputExample }
-            : { bodyType: "json", body: tool.inputExample }),
-        },
-        output: { example: tool.outputExample },
-      },
-    },
+    properties,
+    required: keys.length ? [keys[0]!] : undefined,
   };
+}
+
+export function bazaarForTool(tool: OracleToolSpec, transport: "http" | "mcp"): BazaarExtension {
+  if (transport === "mcp") {
+    return declareDiscoveryExtension({
+      toolName: tool.name,
+      description: tool.description.slice(0, 500),
+      transport: "streamable-http",
+      inputSchema: inputSchemaFor(tool),
+      example: tool.inputExample,
+      output: { example: tool.outputExample },
+    }) as BazaarExtension;
+  }
+  const isGet = tool.httpMethod === "GET";
+  return declareDiscoveryExtension({
+    method: tool.httpMethod,
+    ...(isGet ? {} : { bodyType: "json" as const }),
+    input: tool.inputExample,
+    inputSchema: inputSchemaFor(tool),
+    output: { example: tool.outputExample },
+  }) as BazaarExtension;
 }
 
 export function buildAccept(env: OracleEnv, priceUsd: number): PaymentAccept {

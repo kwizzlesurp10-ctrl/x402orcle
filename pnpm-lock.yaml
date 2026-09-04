@@ -97,6 +97,9 @@ importers:
 
   packages/oracle-brain:
     dependencies:
+      '@x402/extensions':
+        specifier: ^2.25.0
+        version: 2.25.0(typescript@5.9.3)
       zod:
         specifier: ^3.25.0
         version: 3.25.76

@@ -28,6 +28,7 @@ describe("oracle http", () => {
     expect(res.status).toBe(402);
     expect(res.headers["payment-required"]).toBeTruthy();
     expect(res.body.extensions.bazaar.info.input.method).toBe("POST");
+    expect(res.body.extensions.bazaar.schema.$schema).toMatch(/json-schema/);
     expect(res.body.resource.url).toContain("/api/consult/oracle_ask");
   });
 
