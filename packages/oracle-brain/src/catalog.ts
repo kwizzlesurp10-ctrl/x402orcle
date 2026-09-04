@@ -162,6 +162,25 @@ export const TOOLS: OracleToolSpec[] = [
 export const FREE_TOOLS = TOOLS.filter((t) => t.tier === "free");
 export const PAID_TOOLS = TOOLS.filter((t) => t.tier === "paid");
 
+export function jsonSchemaFromExample(example: Record<string, unknown>): {
+  type: "object";
+  properties: Record<string, { type: string; description?: string }>;
+  required?: string[];
+} {
+  const properties: Record<string, { type: string; description?: string }> = {};
+  for (const [k, v] of Object.entries(example)) {
+    properties[k] = {
+      type: Array.isArray(v) ? "array" : typeof v === "number" ? "number" : "string",
+    };
+  }
+  const keys = Object.keys(properties);
+  return {
+    type: "object",
+    properties,
+    ...(keys.length ? { required: [keys[0]!] } : {}),
+  };
+}
+
 export function getTool(name: string): OracleToolSpec | undefined {
   return TOOLS.find((t) => t.name === name);
 }

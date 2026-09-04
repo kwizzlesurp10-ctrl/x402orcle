@@ -1,4 +1,4 @@
-import { FREE_TOOLS, PAID_TOOLS, SERVICE, TOOLS, clampPrice } from "./catalog.js";
+import { FREE_TOOLS, PAID_TOOLS, SERVICE, TOOLS, clampPrice, jsonSchemaFromExample } from "./catalog.js";
 import { BASE_USDC, usdToAtomic, usdcForNetwork, type OracleEnv } from "./env.js";
 import { ORACLE_CONNECT_HOWTO } from "./persona.js";
 import { paidCatalogRequired } from "./challenge.js";
@@ -205,23 +205,26 @@ export function openApi(env: OracleEnv) {
   const paths: Record<string, unknown> = {};
   for (const t of TOOLS) {
     const paid = t.tier === "paid";
-    const op = {
+    const priceUsd = clampPrice(t, undefined, env.maxPriceUsd);
+    const paymentInfo = paid
+      ? {
+          price: {
+            mode: "fixed",
+            currency: "USD",
+            amount: priceUsd.toFixed(6),
+          },
+          protocols: [{ x402: {} }],
+          network: env.network,
+          payTo: env.payTo,
+          asset: usdcForNetwork(env.network),
+          atomicAmount: usdToAtomic(priceUsd),
+        }
+      : undefined;
+    const op: Record<string, unknown> = {
       summary: t.description,
       operationId: t.name,
       tags: t.tags,
-      "x-payment-info": paid
-        ? {
-            scheme: "exact",
-            network: env.network,
-            amount: usdToAtomic(clampPrice(t, undefined, env.maxPriceUsd)),
-            asset: usdcForNetwork(env.network),
-            payTo: env.payTo,
-            headers: {
-              challenge: "PAYMENT-REQUIRED",
-              payment: "PAYMENT-SIGNATURE",
-            },
-          }
-        : { price: "free" },
+      ...(paid ? { "x-payment-info": paymentInfo } : {}),
       responses: {
         ...(paid
           ? {
@@ -236,25 +239,38 @@ export function openApi(env: OracleEnv) {
         "200": {
           description: "OK",
           content: {
-            "application/json": { example: t.outputExample },
+            "application/json": {
+              schema: { type: "object" },
+              example: t.outputExample,
+            },
           },
         },
       },
     };
+    if (t.httpMethod === "POST") {
+      op.requestBody = {
+        required: paid,
+        content: {
+          "application/json": {
+            schema: jsonSchemaFromExample(t.inputExample),
+            example: t.inputExample,
+          },
+        },
+      };
+    }
     paths[t.httpPath] = { [t.httpMethod.toLowerCase()]: op };
     if (paid && t.httpMethod === "POST") {
-      const getPath = t.httpPath;
-      const existing = (paths[getPath] as Record<string, unknown>) || {};
+      const existing = (paths[t.httpPath] as Record<string, unknown>) || {};
       existing.get = {
         summary: `Crawler 402 for ${t.name}`,
         operationId: `${t.name}_crawler_402`,
-        "x-payment-info": op["x-payment-info"],
+        "x-payment-info": paymentInfo,
         responses: {
-          "402": op.responses["402"],
+          "402": (op.responses as Record<string, unknown>)["402"],
           "200": { description: "Paid GET not used; POST after payment" },
         },
       };
-      paths[getPath] = existing;
+      paths[t.httpPath] = existing;
     }
   }
   paths["/.well-known/funding.json"] = {
@@ -262,7 +278,13 @@ export function openApi(env: OracleEnv) {
   };
   return {
     openapi: "3.1.0",
-    info: { title: SERVICE.name, version: SERVICE.version, description: SERVICE.thesis },
+    info: {
+      title: SERVICE.name,
+      version: SERVICE.version,
+      description: SERVICE.thesis,
+      "x-guidance":
+        "Free GET /api/health and /api/pricing. Paid consults: POST /api/consult/oracle_ask with JSON {question}. Unpaid probes return HTTP 402 and PAYMENT-REQUIRED (x402 v2, Base USDC). After payment, retry with PAYMENT-SIGNATURE. MCP streamable HTTP at /mcp. No private keys.",
+    },
     servers: [{ url: env.publicBaseUrl }],
     paths,
   };

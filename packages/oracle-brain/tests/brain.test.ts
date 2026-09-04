@@ -125,6 +125,12 @@ describe("discovery surfaces", () => {
     expect(txt).toContain("oracle_ask");
     const spec = openApi(env) as { paths: Record<string, { post?: { "x-payment-info"?: unknown }; get?: unknown }> };
     expect(spec.paths["/api/consult/oracle_ask"]?.post?.["x-payment-info"]).toBeTruthy();
+    const pay = spec.paths["/api/consult/oracle_ask"]?.post?.["x-payment-info"] as {
+      protocols?: unknown[];
+      price?: { amount?: string };
+    };
+    expect(pay.protocols).toEqual([{ x402: {} }]);
+    expect(pay.price?.amount).toBe("0.100000");
     expect(spec.paths["/api/consult/oracle_ask"]?.get).toBeTruthy();
   });
 
