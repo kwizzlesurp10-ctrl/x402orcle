@@ -134,3 +134,62 @@ describe("discovery surfaces", () => {
     expect(x.resources.length).toBe(PAID_TOOLS.length);
   });
 });
+
+describe("live facilitator consult", () => {
+  it("401 verify surfaces FACILITATOR_AUTH_REQUIRED without serving wisdom", async () => {
+    const live = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+      DEMO_MODE: "false",
+    });
+    const { handleConsult } = await import("../src/index.js");
+    const fetchImpl = (async () =>
+      new Response("Unauthorized", { status: 401 })) as unknown as typeof fetch;
+    const res = await handleConsult({
+      env: live,
+      toolName: "oracle_ask",
+      input: { question: "rank?" },
+      payment: { x402Version: 2, accepted: { scheme: "exact", network: live.network, payTo: live.payTo } },
+      transport: "http",
+      fetchImpl,
+    });
+    expect(res.status).toBe(402);
+    expect((res.body as { facilitator_error?: string }).facilitator_error).toBe(
+      "FACILITATOR_AUTH_REQUIRED",
+    );
+  });
+
+  it("successful verify+settle returns live receipt", async () => {
+    const live = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+      DEMO_MODE: "false",
+    });
+    const { handleConsult } = await import("../src/index.js");
+    const fetchImpl = (async (url: string | URL) => {
+      const u = String(url);
+      if (u.endsWith("/verify")) {
+        return new Response(JSON.stringify({ isValid: true, payer: "0xabc" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ success: true, payer: "0xabc", transaction: "0xdead" }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    const res = await handleConsult({
+      env: live,
+      toolName: "oracle_ask",
+      input: { question: "Why no rank without settlement?" },
+      payment: { x402Version: 2 },
+      transport: "http",
+      fetchImpl,
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { receipt?: { mode?: string; transaction?: string } };
+    expect(body.receipt?.mode).toBe("live");
+    expect(body.receipt?.transaction).toBe("0xdead");
+  });
+});

@@ -33,5 +33,5 @@ export {
   jsonLd,
 } from "./discovery.js";
 export { buildDemoPaymentPayload, demoVerify, demoPayerFromPayload } from "./demo-payment.js";
-export { handleConsult, type ConsultResult } from "./http.js";
+export { handleConsult, facilitatorVerifyThenSettle, type ConsultResult } from "./http.js";
 export { landingHtml } from "./landing.js";
