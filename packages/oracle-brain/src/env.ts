@@ -17,10 +17,8 @@ export const EnvSchema = z
       .default("https://api.cdp.coinbase.com/platform/v2/x402"),
     X402_FACILITATOR_URL_FALLBACK: z.string().optional(),
     MAX_PRICE_USD: z.coerce.number().positive().max(100).default(25),
-    DEMO_MODE: z
-      .string()
-      .optional()
-      .transform((v) => ["1", "true", "yes", "on"].includes((v ?? "true").toLowerCase())),
+    DEMO_MODE: z.string().optional(),
+    DEMO_ALLOW_PUBLIC: z.string().optional(),
     PORT: z.coerce.number().int().positive().default(4021),
     HOST: z.string().default("127.0.0.1"),
     ORACLE_LLM_API_KEY: z.string().optional(),
@@ -73,18 +71,28 @@ export type OracleEnv = {
   sellerLeakWarning: boolean;
 };
 
+function truthy(v: string | undefined, fallback: boolean): boolean {
+  if (v === undefined || v === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(v.toLowerCase());
+}
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): OracleEnv {
   const parsed = EnvSchema.parse(source);
   const payTo = (parsed.X402_PAY_TO || parsed.X402_PAY_TO_ADDRESS)!;
   const sellerLeakWarning = Boolean(parsed.EVM_PRIVATE_KEY && parsed.EVM_PRIVATE_KEY.length > 0);
+  const publicBaseUrl = parsed.PUBLIC_BASE_URL.replace(/\/$/, "");
+  const allowPublicDemo = truthy(parsed.DEMO_ALLOW_PUBLIC, false);
+  const httpsPublic = publicBaseUrl.startsWith("https://");
+  const demoRequested = truthy(parsed.DEMO_MODE, !httpsPublic);
+  const demoMode = demoRequested && (!httpsPublic || allowPublicDemo);
   return {
-    publicBaseUrl: parsed.PUBLIC_BASE_URL.replace(/\/$/, ""),
+    publicBaseUrl,
     payTo: payTo as `0x${string}`,
     network: parsed.X402_NETWORK,
     facilitatorUrl: parsed.X402_FACILITATOR_URL,
     facilitatorFallback: parsed.X402_FACILITATOR_URL_FALLBACK,
     maxPriceUsd: parsed.MAX_PRICE_USD,
-    demoMode: Boolean(parsed.DEMO_MODE),
+    demoMode,
     port: parsed.PORT,
     host: parsed.HOST,
     llmApiKey: parsed.ORACLE_LLM_API_KEY,

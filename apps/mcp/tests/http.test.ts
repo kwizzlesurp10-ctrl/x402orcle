@@ -75,4 +75,19 @@ describe("oracle http", () => {
     expect(res.text).toContain("application/ld+json");
     expect(res.text).toContain("402 is the answer");
   });
+
+  it("https public host refuses demo mint", async () => {
+    const liveEnv = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_NETWORK: "eip155:8453",
+      DEMO_MODE: "true",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+      MAX_PRICE_USD: "25",
+    });
+    const liveApp = createOracleApp(liveEnv);
+    const mint = await request(liveApp).post("/v1/demo/mint-payment").send({ tool: "oracle_ask" });
+    expect(mint.status).toBe(403);
+    const health = await request(liveApp).get("/health");
+    expect(health.body.demoMode).toBe(false);
+  });
 });

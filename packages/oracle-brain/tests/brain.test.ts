@@ -42,6 +42,22 @@ describe("env", () => {
     expect(e.sellerLeakWarning).toBe(true);
     expect(e.payTo).toHaveLength(42);
   });
+
+  it("refuses demo mode on https unless DEMO_ALLOW_PUBLIC", () => {
+    const live = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      DEMO_MODE: "true",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+    });
+    expect(live.demoMode).toBe(false);
+    const allowed = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      DEMO_MODE: "true",
+      DEMO_ALLOW_PUBLIC: "true",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+    });
+    expect(allowed.demoMode).toBe(true);
+  });
 });
 
 describe("policy", () => {
