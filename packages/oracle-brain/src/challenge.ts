@@ -61,7 +61,7 @@ export function bazaarForTool(tool: OracleToolSpec, transport: "http" | "mcp"): 
       inputSchema: inputSchemaFor(tool),
       example: tool.inputExample,
       output: { example: tool.outputExample },
-    }) as BazaarExtension;
+    }) as unknown as BazaarExtension;
   }
   const isGet = tool.httpMethod === "GET";
   return declareDiscoveryExtension({
@@ -70,7 +70,7 @@ export function bazaarForTool(tool: OracleToolSpec, transport: "http" | "mcp"): 
     input: tool.inputExample,
     inputSchema: inputSchemaFor(tool),
     output: { example: tool.outputExample },
-  }) as BazaarExtension;
+  }) as unknown as BazaarExtension;
 }
 
 export function buildAccept(env: OracleEnv, priceUsd: number): PaymentAccept {
