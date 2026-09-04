@@ -1,0 +1,20 @@
+{
+  "name": "x402orcle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "x402 Oracle — paid MCP + HTTP 402 wisdom market on Base USDC (slug: x402orcle)",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "dev:web": "pnpm --filter @x402orcle/web dev",
+    "dev:mcp": "pnpm --filter @x402orcle/mcp dev",
+    "start:mcp": "pnpm --filter @x402orcle/mcp start",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "verify:http": "node scripts/verify-http.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

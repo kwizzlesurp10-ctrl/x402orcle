@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D"
+      DEMO_MODE: "true"
+      PUBLIC_BASE_URL: "http://127.0.0.1:4021"
+      MAX_PRICE_USD: "25"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --filter @x402orcle/oracle-brain test
+      - run: pnpm --filter @x402orcle/mcp test

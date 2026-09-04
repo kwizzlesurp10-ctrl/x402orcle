@@ -1,0 +1,112 @@
+:root {
+  --basalt: #161310;
+  --basalt-2: #1e1a16;
+  --vellum: #e8dcc4;
+  --vellum-dim: #cbbfa6;
+  --brass: #b08d57;
+  --brass-bright: #d4b483;
+  --crimson: #9b1b2e;
+  --crimson-glow: #c43b4e;
+  --ink: #2a241c;
+  --rule: rgba(176, 141, 87, 0.35);
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-mono: "IBM Plex Mono", "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, rgba(155, 27, 46, 0.18), transparent 55%),
+    linear-gradient(180deg, var(--basalt) 0%, var(--basalt-2) 100%);
+  color: var(--vellum);
+  font-family: var(--font-serif);
+}
+
+.slit-wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 28px;
+}
+
+.slit {
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--brass), var(--crimson), var(--brass), transparent);
+  box-shadow: 0 0 18px rgba(196, 59, 78, 0.35);
+  border-radius: 1px;
+  min-height: 100%;
+}
+
+.ledger {
+  border: 1px solid var(--rule);
+  background: rgba(22, 19, 16, 0.72);
+  padding: 36px 36px 28px;
+  box-shadow: inset 0 0 0 1px rgba(232, 220, 196, 0.04);
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--brass);
+  margin: 0 0 18px;
+}
+
+h1 {
+  font-weight: 500;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.15;
+  margin: 0 0 12px;
+  color: var(--vellum);
+}
+
+.thesis {
+  font-size: 22px;
+  color: var(--crimson-glow);
+  margin: 0 0 28px;
+}
+
+p { line-height: 1.55; color: var(--vellum-dim); }
+
+.menu {
+  display: grid;
+  gap: 10px;
+  margin: 28px 0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  border-bottom: 1px dashed var(--rule);
+  padding: 8px 0;
+}
+
+.price { color: var(--brass-bright); }
+.free { color: var(--vellum); }
+
+pre {
+  background: #110e0c;
+  border: 1px solid var(--rule);
+  color: var(--vellum);
+  padding: 16px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+a { color: var(--brass-bright); }
+footer {
+  margin-top: 36px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--vellum-dim);
+}
