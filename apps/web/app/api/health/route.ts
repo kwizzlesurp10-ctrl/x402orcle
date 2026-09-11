@@ -11,6 +11,7 @@ export function GET() {
     slug: SERVICE.slug,
     wallet_configured: false,
     pay_to_configured: true,
+    cdp_auth_configured: Boolean(env.cdpApiKeyId && env.cdpApiKeySecret),
     seller_leak_warning: env.sellerLeakWarning,
     demoMode: env.demoMode,
     network: env.network,

@@ -25,6 +25,10 @@ export const EnvSchema = z
     ORACLE_LLM_BASE_URL: z.string().optional(),
     ORACLE_LLM_MODEL: z.string().optional(),
     EVM_PRIVATE_KEY: z.string().optional(),
+    CDP_API_KEY_ID: z.string().optional(),
+    CDP_API_KEY_SECRET: z.string().optional(),
+    KEY_NAME: z.string().optional(),
+    KEY_SECRET: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const payTo = data.X402_PAY_TO || data.X402_PAY_TO_ADDRESS;
@@ -69,6 +73,8 @@ export type OracleEnv = {
   llmBaseUrl: string;
   llmModel: string;
   sellerLeakWarning: boolean;
+  cdpApiKeyId?: string;
+  cdpApiKeySecret?: string;
 };
 
 function truthy(v: string | undefined, fallback: boolean): boolean {
@@ -99,6 +105,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): OracleEnv {
     llmBaseUrl: parsed.ORACLE_LLM_BASE_URL || "https://api.x.ai/v1",
     llmModel: parsed.ORACLE_LLM_MODEL || "grok-4",
     sellerLeakWarning,
+    cdpApiKeyId: parsed.CDP_API_KEY_ID || parsed.KEY_NAME,
+    cdpApiKeySecret: parsed.CDP_API_KEY_SECRET || parsed.KEY_SECRET,
   };
 }
 

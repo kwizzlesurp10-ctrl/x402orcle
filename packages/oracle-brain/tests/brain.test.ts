@@ -15,6 +15,8 @@ import {
   usdToAtomic,
   landingConsultCopy,
   landingHtml,
+  generateCdpJwt,
+  cdpAuthHeaders,
 } from "../src/index.js";
 
 const env = loadEnv({
@@ -167,6 +169,39 @@ describe("landing consult copy", () => {
   });
 });
 
+describe("cdp jwt", () => {
+  const apiKeyId = "00000000-0000-0000-0000-000000000001";
+  const apiKeySecret = Buffer.concat([Buffer.alloc(32, 1), Buffer.alloc(32, 2)]).toString("base64");
+
+  it("signs EdDSA jwt bound to method and path", () => {
+    const token = generateCdpJwt({
+      apiKeyId,
+      apiKeySecret,
+      method: "POST",
+      url: "https://api.cdp.coinbase.com/platform/v2/x402/verify",
+    });
+    const [h, p, s] = token.split(".");
+    const header = JSON.parse(Buffer.from(h!, "base64url").toString("utf8")) as { alg?: string; kid?: string };
+    const payload = JSON.parse(Buffer.from(p!, "base64url").toString("utf8")) as { iss?: string; uri?: string };
+    expect(header.alg).toBe("EdDSA");
+    expect(header.kid).toBe(apiKeyId);
+    expect(payload.iss).toBe("cdp");
+    expect(payload.uri).toBe("POST api.cdp.coinbase.com/platform/v2/x402/verify");
+    expect(s).toBeTruthy();
+  });
+
+  it("omits Authorization on non-CDP facilitators", () => {
+    expect(
+      cdpAuthHeaders({
+        apiKeyId,
+        apiKeySecret,
+        method: "POST",
+        url: "https://facilitator.payai.network/verify",
+      }),
+    ).toEqual({});
+  });
+});
+
 describe("live facilitator consult", () => {
   it("401 verify surfaces FACILITATOR_AUTH_REQUIRED without serving wisdom", async () => {
     const live = loadEnv({
@@ -189,6 +224,44 @@ describe("live facilitator consult", () => {
     expect((res.body as { facilitator_error?: string }).facilitator_error).toBe(
       "FACILITATOR_AUTH_REQUIRED",
     );
+  });
+
+  it("sends CDP Bearer JWT on verify and settle when keys are set", async () => {
+    const apiKeySecret = Buffer.concat([Buffer.alloc(32, 1), Buffer.alloc(32, 2)]).toString("base64");
+    const live = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+      DEMO_MODE: "false",
+      CDP_API_KEY_ID: "00000000-0000-0000-0000-000000000001",
+      CDP_API_KEY_SECRET: apiKeySecret,
+    });
+    const auths: string[] = [];
+    const { handleConsult } = await import("../src/index.js");
+    const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
+      const headers = init?.headers as Record<string, string> | undefined;
+      auths.push(`${String(url)} ${headers?.Authorization ? "bearer" : "none"}`);
+      if (String(url).endsWith("/verify")) {
+        return new Response(JSON.stringify({ isValid: true, payer: "0xabc" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ success: true, payer: "0xabc", transaction: "0xcdp" }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    const res = await handleConsult({
+      env: live,
+      toolName: "oracle_ask",
+      input: { question: "Why no rank without settlement?" },
+      payment: { x402Version: 2 },
+      transport: "http",
+      fetchImpl,
+    });
+    expect(res.status).toBe(200);
+    expect(auths.some((a) => a.includes("/verify") && a.endsWith("bearer"))).toBe(true);
+    expect(auths.some((a) => a.includes("/settle") && a.endsWith("bearer"))).toBe(true);
   });
 
   it("401 on CDP then fallback facilitator settles", async () => {

@@ -62,6 +62,7 @@ export function createOracleApp(env: OracleEnv): Express {
     version: SERVICE.version,
     network: env.network,
     pay_to_configured: Boolean(env.payTo),
+    cdp_auth_configured: Boolean(env.cdpApiKeyId && env.cdpApiKeySecret),
     wallet_configured: false,
     seller_leak_warning: env.sellerLeakWarning,
     demoMode: env.demoMode,

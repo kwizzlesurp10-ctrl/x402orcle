@@ -5,6 +5,7 @@ import { maybeLlmConsult } from "./consult.js";
 import { buildPaymentRequired, encodePaymentRequired, type PaymentAccept } from "./challenge.js";
 import type { OracleEnv } from "./env.js";
 import { demoVerify } from "./demo-payment.js";
+import { cdpAuthHeaders } from "./cdp-jwt.js";
 
 export type ConsultResult = {
   status: number;
@@ -30,6 +31,7 @@ function facilitatorBases(env: OracleEnv): string[] {
 }
 
 async function verifyThenSettleAt(opts: {
+  env: OracleEnv;
   base: string;
   payment: unknown;
   requirements: PaymentAccept;
@@ -40,9 +42,19 @@ async function verifyThenSettleAt(opts: {
     paymentPayload: opts.payment,
     paymentRequirements: opts.requirements,
   };
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  const jsonHeaders: Record<string, string> = { "content-type": "application/json" };
+  const verifyUrl = `${opts.base}/verify`;
+  const headers = {
+    ...jsonHeaders,
+    ...cdpAuthHeaders({
+      apiKeyId: opts.env.cdpApiKeyId,
+      apiKeySecret: opts.env.cdpApiKeySecret,
+      method: "POST",
+      url: verifyUrl,
+    }),
+  };
 
-  const verifyRes = await opts.fetchImpl(`${opts.base}/verify`, {
+  const verifyRes = await opts.fetchImpl(verifyUrl, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -62,9 +74,19 @@ async function verifyThenSettleAt(opts: {
     return { ok: false, payer: verifyJson.payer, reason: verifyJson.invalidReason || "INVALID_PAYMENT" };
   }
 
-  const settleRes = await opts.fetchImpl(`${opts.base}/settle`, {
+  const settleUrl = `${opts.base}/settle`;
+  const settleHeaders = {
+    ...jsonHeaders,
+    ...cdpAuthHeaders({
+      apiKeyId: opts.env.cdpApiKeyId,
+      apiKeySecret: opts.env.cdpApiKeySecret,
+      method: "POST",
+      url: settleUrl,
+    }),
+  };
+  const settleRes = await opts.fetchImpl(settleUrl, {
     method: "POST",
-    headers,
+    headers: settleHeaders,
     body: JSON.stringify(payload),
   });
   if (settleRes.status === 401 || settleRes.status === 403) {
@@ -99,6 +121,7 @@ export async function facilitatorVerifyThenSettle(opts: {
   let last: FacilitatorVerifyResult = { ok: false, reason: "FACILITATOR_VERIFY_FAILED" };
   for (const base of bases) {
     const result = await verifyThenSettleAt({
+      env: opts.env,
       base,
       payment: opts.payment,
       requirements: opts.requirements,

@@ -30,6 +30,8 @@ Paid replies are a **wisdom envelope**: verdict, wisdom, implementation_prompt, 
 X402_PAY_TO=0x…                 # 42-char address only
 X402_NETWORK=eip155:8453
 X402_FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402
+CDP_API_KEY_ID=                 # Secret API key id (JWT). Not a wallet key.
+CDP_API_KEY_SECRET=
 MAX_PRICE_USD=25
 DEMO_MODE=true                  # local DemoFacilitator
 ```
