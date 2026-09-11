@@ -190,6 +190,45 @@ describe("live facilitator consult", () => {
     );
   });
 
+  it("401 on CDP then fallback facilitator settles", async () => {
+    const live = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+      DEMO_MODE: "false",
+      X402_FACILITATOR_URL: "https://api.cdp.coinbase.com/platform/v2/x402",
+      X402_FACILITATOR_URL_FALLBACK: "https://facilitator.payai.network",
+    });
+    const { handleConsult } = await import("../src/index.js");
+    const fetchImpl = (async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("api.cdp.coinbase.com")) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      if (u.endsWith("/verify")) {
+        return new Response(JSON.stringify({ isValid: true, payer: "0xabc" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ success: true, payer: "0xabc", transaction: "0xfeed" }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    const res = await handleConsult({
+      env: live,
+      toolName: "oracle_ask",
+      input: { question: "Why no rank without settlement?" },
+      payment: { x402Version: 2 },
+      transport: "http",
+      fetchImpl,
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { receipt?: { mode?: string; transaction?: string } };
+    expect(body.receipt?.mode).toBe("live");
+    expect(body.receipt?.transaction).toBe("0xfeed");
+  });
+
   it("successful verify+settle returns live receipt", async () => {
     const live = loadEnv({
       X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",

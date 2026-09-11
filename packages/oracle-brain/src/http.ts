@@ -19,14 +19,22 @@ export type FacilitatorVerifyResult = {
   reason?: string;
 };
 
-export async function facilitatorVerifyThenSettle(opts: {
-  env: OracleEnv;
+function facilitatorBases(env: OracleEnv): string[] {
+  const out: string[] = [];
+  for (const raw of [env.facilitatorUrl, env.facilitatorFallback]) {
+    if (!raw) continue;
+    const base = raw.replace(/\/$/, "");
+    if (!out.includes(base)) out.push(base);
+  }
+  return out;
+}
+
+async function verifyThenSettleAt(opts: {
+  base: string;
   payment: unknown;
   requirements: PaymentAccept;
-  fetchImpl?: typeof fetch;
+  fetchImpl: typeof fetch;
 }): Promise<FacilitatorVerifyResult> {
-  const fetchImpl = opts.fetchImpl ?? fetch;
-  const base = opts.env.facilitatorUrl.replace(/\/$/, "");
   const payload = {
     x402Version: 2,
     paymentPayload: opts.payment,
@@ -34,7 +42,7 @@ export async function facilitatorVerifyThenSettle(opts: {
   };
   const headers: Record<string, string> = { "content-type": "application/json" };
 
-  const verifyRes = await fetchImpl(`${base}/verify`, {
+  const verifyRes = await opts.fetchImpl(`${opts.base}/verify`, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -54,7 +62,7 @@ export async function facilitatorVerifyThenSettle(opts: {
     return { ok: false, payer: verifyJson.payer, reason: verifyJson.invalidReason || "INVALID_PAYMENT" };
   }
 
-  const settleRes = await fetchImpl(`${base}/settle`, {
+  const settleRes = await opts.fetchImpl(`${opts.base}/settle`, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -78,6 +86,32 @@ export async function facilitatorVerifyThenSettle(opts: {
     payer: settleJson.payer || verifyJson.payer,
     transaction: settleJson.transaction,
   };
+}
+
+export async function facilitatorVerifyThenSettle(opts: {
+  env: OracleEnv;
+  payment: unknown;
+  requirements: PaymentAccept;
+  fetchImpl?: typeof fetch;
+}): Promise<FacilitatorVerifyResult> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const bases = facilitatorBases(opts.env);
+  let last: FacilitatorVerifyResult = { ok: false, reason: "FACILITATOR_VERIFY_FAILED" };
+  for (const base of bases) {
+    const result = await verifyThenSettleAt({
+      base,
+      payment: opts.payment,
+      requirements: opts.requirements,
+      fetchImpl,
+    });
+    if (result.ok) return result;
+    last = result;
+    if (result.reason === "FACILITATOR_AUTH_REQUIRED" || result.reason?.startsWith("FACILITATOR_VERIFY_")) {
+      continue;
+    }
+    return result;
+  }
+  return last;
 }
 
 export async function handleConsult(opts: {
