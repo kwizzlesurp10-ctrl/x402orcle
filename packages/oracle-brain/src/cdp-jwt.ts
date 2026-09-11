@@ -60,10 +60,12 @@ export function cdpAuthHeaders(opts: {
   method: string;
   url: string;
 }): Record<string, string> {
-  if (!opts.apiKeyId || !opts.apiKeySecret) return {};
+  const apiKeyId = opts.apiKeyId;
+  const apiKeySecret = opts.apiKeySecret;
+  if (!apiKeyId || !apiKeySecret) return {};
   if (!/cdp\.coinbase\.com$/i.test(new URL(opts.url).hostname)) return {};
   return {
-    Authorization: `Bearer ${generateCdpJwt(opts)}`,
+    Authorization: `Bearer ${generateCdpJwt({ ...opts, apiKeyId, apiKeySecret })}`,
     Accept: "application/json",
   };
 }
