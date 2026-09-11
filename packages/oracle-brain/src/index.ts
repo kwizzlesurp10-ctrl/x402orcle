@@ -34,4 +34,4 @@ export {
 } from "./discovery.js";
 export { buildDemoPaymentPayload, demoVerify, demoPayerFromPayload } from "./demo-payment.js";
 export { handleConsult, facilitatorVerifyThenSettle, type ConsultResult } from "./http.js";
-export { landingHtml } from "./landing.js";
+export { landingHtml, landingConsultCopy, LANDING_ASK_BODY } from "./landing.js";

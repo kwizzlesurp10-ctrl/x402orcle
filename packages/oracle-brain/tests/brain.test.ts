@@ -13,6 +13,8 @@ import {
   clampPrice,
   PAID_TOOLS,
   usdToAtomic,
+  landingConsultCopy,
+  landingHtml,
 } from "../src/index.js";
 
 const env = loadEnv({
@@ -138,6 +140,29 @@ describe("discovery surfaces", () => {
     const x = wellKnownX402(env);
     expect(x.payTo).toBe(env.payTo);
     expect(x.resources.length).toBe(PAID_TOOLS.length);
+  });
+});
+
+describe("landing consult copy", () => {
+  it("demo host advertises mint-payment", () => {
+    const copy = landingConsultCopy(env);
+    expect(copy.commands).toContain("/v1/demo/mint-payment");
+    expect(landingHtml(env)).toContain("/v1/demo/mint-payment");
+  });
+
+  it("https public host never advertises demo mint", () => {
+    const live = loadEnv({
+      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      DEMO_MODE: "true",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+    });
+    const copy = landingConsultCopy(live);
+    expect(copy.commands).not.toContain("/v1/demo/mint-payment");
+    expect(copy.caption.toLowerCase()).not.toContain("demo mint");
+    expect(copy.commands).toContain("PAYMENT-SIGNATURE");
+    const html = landingHtml(live);
+    expect(html).not.toContain("/v1/demo/mint-payment");
+    expect(html).toContain("HTTP 402");
   });
 });
 

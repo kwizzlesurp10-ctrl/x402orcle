@@ -74,6 +74,7 @@ describe("oracle http", () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain("application/ld+json");
     expect(res.text).toContain("402 is the answer");
+    expect(res.text).toContain("/v1/demo/mint-payment");
   });
 
   it("https public host refuses demo mint", async () => {
@@ -89,5 +90,8 @@ describe("oracle http", () => {
     expect(mint.status).toBe(403);
     const health = await request(liveApp).get("/health");
     expect(health.body.demoMode).toBe(false);
+    const landing = await request(liveApp).get("/");
+    expect(landing.text).not.toContain("/v1/demo/mint-payment");
+    expect(landing.text).toContain("PAYMENT-SIGNATURE");
   });
 });

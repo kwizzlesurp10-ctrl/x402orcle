@@ -1,9 +1,9 @@
-import { PAID_TOOLS, FREE_TOOLS, SERVICE, clampPrice } from "@x402orcle/oracle-brain";
+import { PAID_TOOLS, FREE_TOOLS, SERVICE, clampPrice, landingConsultCopy } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../lib/env";
 
 export default function Page() {
   const env = oracleEnv();
-  const ask = `${env.publicBaseUrl}/api/consult/oracle_ask`;
+  const consult = landingConsultCopy(env);
   return (
     <main className="slit-wrap">
       <div className="slit" aria-hidden="true" />
@@ -33,12 +33,8 @@ export default function Page() {
             </div>
           ))}
         </div>
-        <p>First successful paid consult (demo mint, then 402 envelope):</p>
-        <pre>{`curl -s ${env.publicBaseUrl}/v1/demo/mint-payment -H 'content-type: application/json' -d '{"tool":"oracle_ask"}'
-curl -s -X POST ${ask} \\
-  -H 'content-type: application/json' \\
-  -H "PAYMENT-SIGNATURE: $SIG" \\
-  -d '{"question":"Why is my Bazaar listing unranked after 402s?"}'`}</pre>
+        <p>{consult.caption}</p>
+        <pre>{consult.commands}</pre>
         <p>
           Machine surfaces:{" "}
           <a href="/.well-known/x402">/.well-known/x402</a> ·{" "}

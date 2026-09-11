@@ -11,6 +11,14 @@ async function main() {
   const landing = await fetch(`${base}/`).then((r) => r.text());
   if (!landing.includes("application/ld+json")) throw new Error("missing JSON-LD");
   if (!landing.includes("402 is the answer")) throw new Error("missing thesis");
+  const httpsLive = base.startsWith("https://");
+  if (httpsLive && landing.includes("/v1/demo/mint-payment")) {
+    throw new Error("live landing advertises demo mint");
+  }
+  if (httpsLive) {
+    const ico = await fetch(`${base}/favicon.ico`);
+    if (!ico.ok) throw new Error(`favicon.ico ${ico.status}`);
+  }
   const ask = await fetch(`${base}/api/consult/oracle_ask`, {
     method: "POST",
     headers: { "content-type": "application/json" },
