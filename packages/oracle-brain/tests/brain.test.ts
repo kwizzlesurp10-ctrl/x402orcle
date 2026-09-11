@@ -93,6 +93,7 @@ describe("402 challenge", () => {
     expect(pr.resource.serviceName.length).toBeLessThanOrEqual(32);
     expect(pr.resource.description.length).toBeLessThanOrEqual(500);
     expect(pr.accepts[0]?.amount).toBe(usdToAtomic(0.1));
+    expect(pr.accepts[0]?.extra).toEqual({ name: "USD Coin", version: "2" });
     const b64 = encodePaymentRequired(pr);
     expect(JSON.parse(Buffer.from(b64, "base64").toString("utf8")).error).toBe("PAYMENT_REQUIRED");
   });

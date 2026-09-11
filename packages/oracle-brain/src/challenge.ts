@@ -10,7 +10,7 @@ export type PaymentAccept = {
   asset: string;
   payTo: string;
   maxTimeoutSeconds: number;
-  extra: { name: "USDC"; version: "2" };
+  extra: { name: "USD Coin"; version: "2" };
 };
 
 export type BazaarExtension = {
@@ -81,7 +81,7 @@ export function buildAccept(env: OracleEnv, priceUsd: number): PaymentAccept {
     asset: usdcForNetwork(env.network),
     payTo: env.payTo,
     maxTimeoutSeconds: 60,
-    extra: { name: "USDC", version: "2" },
+    extra: { name: "USD Coin", version: "2" },
   };
 }
 
