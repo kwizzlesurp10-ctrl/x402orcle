@@ -1,7 +1,5 @@
 import { ImageResponse } from "next/og";
-import { SERVICE } from "@x402orcle/oracle-brain";
 
-export const runtime = "edge";
 export const alt = "x402 Oracle — 402 is the answer";
 export const size = {
   width: 1200,
@@ -62,7 +60,7 @@ export default async function Image() {
             alignItems: "center",
           }}
         >
-          {SERVICE.name}
+          x402 Oracle
         </div>
         <div
           style={{
@@ -72,7 +70,7 @@ export default async function Image() {
             fontWeight: 600,
           }}
         >
-          {SERVICE.thesis}
+          402 is the answer. The Oracle is how you ask.
         </div>
         <div
           style={{

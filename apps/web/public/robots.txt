@@ -1,0 +1,30 @@
+User-agent: *
+Allow: /
+Allow: /.well-known/
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /agents.txt
+Allow: /openapi.json
+Allow: /mcp
+Allow: /api/health
+Allow: /api/pricing
+Allow: /api/consult/
+Disallow: /v1/demo/mint-payment
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ExaBot
+Allow: /
+
+User-agent: FirecrawlAgent
+Allow: /
+
+Sitemap: https://x402orcle.vercel.app/sitemap.xml
+Host: https://x402orcle.vercel.app

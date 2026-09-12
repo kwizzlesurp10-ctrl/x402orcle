@@ -10,6 +10,8 @@ import {
   agentCard,
   llmsTxt,
   openApi,
+  jsonLd,
+  llmsFullTxt,
   clampPrice,
   PAID_TOOLS,
   usdToAtomic,
@@ -143,6 +145,25 @@ describe("discovery surfaces", () => {
     const x = wellKnownX402(env);
     expect(x.payTo).toBe(env.payTo);
     expect(x.resources.length).toBe(PAID_TOOLS.length);
+  });
+
+  it("jsonLd returns multi-entity Schema.org graph (SoftwareApplication, WebAPI, Service, Dataset, Organization)", () => {
+    const ld = jsonLd(env);
+    expect(ld["@context"]).toBe("https://schema.org");
+    expect(Array.isArray(ld["@graph"])).toBe(true);
+    const types = ld["@graph"].map((node: { "@type": string }) => node["@type"]);
+    expect(types).toContain("Organization");
+    expect(types).toContain("SoftwareApplication");
+    expect(types).toContain("WebAPI");
+    expect(types).toContain("Service");
+    expect(types).toContain("Dataset");
+  });
+
+  it("llmsFullTxt includes full schemas and payment specs", () => {
+    const full = llmsFullTxt(env);
+    expect(full).toContain("Full Technical Reference");
+    expect(full).toContain("Wisdom Envelope Format");
+    expect(full).toContain("oracle_ask");
   });
 });
 
