@@ -5,6 +5,7 @@ import {
   TOOLS,
   PAID_TOOLS,
   ORACLE_CONNECT_HOWTO,
+  jsonSchemaFromExample,
 } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../lib/env";
 
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
         tools: TOOLS.map((t) => ({
           name: t.name,
           description: t.description,
-          inputSchema: { type: "object", additionalProperties: true },
+          inputSchema: jsonSchemaFromExample(t.inputExample),
         })),
       },
     });

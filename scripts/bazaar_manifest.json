@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "registry": "Coinbase CDP Bazaar",
+  "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402",
+  "validator": "https://api.cdp.coinbase.com/platform/v2/x402/validate",
+  "service": {
+    "name": "x402 Oracle",
+    "slug": "x402orcle",
+    "tagline": "402 is the answer. The Oracle is how you ask.",
+    "network": "eip155:8453",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    "canonicalUrl": "https://x402orcle.vercel.app"
+  },
+  "validationEndpoints": [
+    {
+      "resource": "https://x402orcle.vercel.app/api/consult/oracle_ask",
+      "method": "POST",
+      "priceUsd": 0.1,
+      "atomicAmount": "100000",
+      "preflightChecksRequired": 25,
+      "status": "VALIDATED"
+    },
+    {
+      "resource": "https://x402orcle.vercel.app/api/consult/oracle_diagnose_402",
+      "method": "POST",
+      "priceUsd": 0.5,
+      "atomicAmount": "500000",
+      "preflightChecksRequired": 25,
+      "status": "VALIDATED"
+    },
+    {
+      "resource": "https://x402orcle.vercel.app/api/consult/oracle_review_mcp",
+      "method": "POST",
+      "priceUsd": 3.0,
+      "atomicAmount": "3000000",
+      "preflightChecksRequired": 25,
+      "status": "VALIDATED"
+    },
+    {
+      "resource": "https://x402orcle.vercel.app/api/consult/oracle_bazaar_rewrite",
+      "method": "POST",
+      "priceUsd": 1.5,
+      "atomicAmount": "1500000",
+      "preflightChecksRequired": 25,
+      "status": "VALIDATED"
+    },
+    {
+      "resource": "https://x402orcle.vercel.app/api/consult/complete_oracle_task",
+      "method": "POST",
+      "priceUsd": 10.0,
+      "atomicAmount": "10000000",
+      "preflightChecksRequired": 25,
+      "status": "VALIDATED"
+    }
+  ],
+  "settlementRules": {
+    "rankingTrigger": "mainnet_settlement",
+    "minimumSettlement": "$0.10 USDC",
+    "network": "Base Mainnet (8453)",
+    "note": "CDP Bazaar ranking indexes real on-chain settlement transactions processed via CDP Facilitator. 402 challenge probes alone do not establish Bazaar search ranking."
+  }
+}

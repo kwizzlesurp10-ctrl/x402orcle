@@ -6,6 +6,7 @@ export {
   SERVICE,
   getTool,
   clampPrice,
+  jsonSchemaFromExample,
   type OracleToolSpec,
 } from "./catalog.js";
 export { gatePaidTool, refuseKeyRequestMessage } from "./policy.js";
@@ -28,6 +29,7 @@ export {
   agentCard,
   agentsJson,
   llmsTxt,
+  llmsFullTxt,
   agentsTxt,
   openApi,
   jsonLd,

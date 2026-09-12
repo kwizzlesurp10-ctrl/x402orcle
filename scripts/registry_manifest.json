@@ -1,8 +1,10 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "x402 Oracle",
   "slug": "x402orcle",
   "version": "1.0.0",
-  "description": "Paid & Free MCP + HTTP 402 wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC (eip155:8453). Autonomous state verification, attestation, and diagnostics.",
+  "tagline": "402 is the answer. The Oracle is how you ask.",
+  "description": "Paid & Free MCP + HTTP 402 wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC (eip155:8453). Provides autonomous diagnostics, security review, state verification, and catalog ranking intelligence.",
   "homepage": "https://x402orcle.vercel.app",
   "repository": "https://github.com/kwizzlesurp10-ctrl/x402orcle",
   "protocols": [
@@ -16,67 +18,164 @@
   ],
   "payment": {
     "protocol": "x402",
+    "version": 2,
+    "scheme": "exact",
+    "network": "eip155:8453",
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "assetSymbol": "USDC",
+    "assetDecimals": 6,
     "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
-    "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402"
+    "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402",
+    "challengeHeader": "PAYMENT-REQUIRED",
+    "paymentHeader": "PAYMENT-SIGNATURE",
+    "receiptHeader": "PAYMENT-RESPONSE",
+    "minAmountAtomic": "1000"
   },
   "discovery": {
+    "landing": "https://x402orcle.vercel.app/",
     "x402": "https://x402orcle.vercel.app/.well-known/x402",
     "agentCard": "https://x402orcle.vercel.app/.well-known/agent-card.json",
+    "agentsJson": "https://x402orcle.vercel.app/.well-known/agents.json",
     "mcp": "https://x402orcle.vercel.app/.well-known/mcp.json",
+    "mcpStreamable": "https://x402orcle.vercel.app/mcp",
+    "funding": "https://x402orcle.vercel.app/.well-known/funding.json",
     "llmsTxt": "https://x402orcle.vercel.app/llms.txt",
     "agentsTxt": "https://x402orcle.vercel.app/agents.txt",
-    "openapi": "https://x402orcle.vercel.app/openapi.json"
+    "openapi": "https://x402orcle.vercel.app/openapi.json",
+    "health": "https://x402orcle.vercel.app/api/health",
+    "pricing": "https://x402orcle.vercel.app/api/pricing"
   },
   "tools": [
     {
       "name": "oracle_health",
       "tier": "free",
-      "description": "Free endpoint returning server health, node state, and chain synchronization status."
+      "priceUsd": 0.0,
+      "method": "GET",
+      "path": "/api/health",
+      "description": "Free endpoint returning server health, facilitator configuration, node state, and seller key isolation confirmation.",
+      "tags": ["oracle", "health", "system", "monitoring"]
     },
     {
       "name": "oracle_pricing",
       "tier": "free",
-      "description": "Free endpoint returning current rate matrix, supported networks, and facilitator configuration."
+      "priceUsd": 0.0,
+      "method": "GET",
+      "path": "/api/pricing",
+      "description": "Free endpoint returning active pricing matrix, fee caps ($25 max), supported payment rails, and connect instructions.",
+      "tags": ["oracle", "pricing", "matrix", "limits"]
     },
     {
       "name": "oracle_ask",
       "tier": "paid",
       "priceUsd": 0.1,
-      "description": "General wisdom & protocol question answering with structured wisdom envelope response."
+      "atomicAmount": "100000",
+      "method": "POST",
+      "path": "/api/consult/oracle_ask",
+      "description": "Paid x402/MCP/A2A/Bazaar consult returning structured wisdom envelope: verdict, wisdom, implementation_prompt, risk, citations, receipt.",
+      "tags": ["x402", "mcp", "a2a", "bazaar", "oracle", "wisdom"],
+      "inputExample": {
+        "question": "Why is my Bazaar listing unranked after 402s with no settlement?",
+        "audience": "agent"
+      }
     },
     {
       "name": "oracle_diagnose_402",
       "tier": "paid",
       "priceUsd": 0.5,
-      "description": "Diagnose failing x402 payment headers, facilitator rejections, and schema errors."
+      "atomicAmount": "500000",
+      "method": "POST",
+      "path": "/api/consult/oracle_diagnose_402",
+      "description": "Diagnose failing x402 payment headers, facilitator verify/settle rejections, and schema errors with remediation steps.",
+      "tags": ["x402", "diagnostics", "cdp", "facilitator", "debugging"],
+      "inputExample": {
+        "rawHeader": "PAYMENT-REQUIRED: eyJ4NDAyVmVyc2lvbiI6Mi...",
+        "symptom": "401 FACILITATOR_AUTH_REQUIRED on settlement"
+      }
     },
     {
       "name": "oracle_review_mcp",
       "tier": "paid",
       "priceUsd": 3.0,
-      "description": "Review and validate streamable-HTTP MCP server manifests, pricing, and tool security."
+      "atomicAmount": "3000000",
+      "method": "POST",
+      "path": "/api/consult/oracle_review_mcp",
+      "description": "Review and validate streamable-HTTP MCP server manifests, pricing models, tool JSON schemas, and security boundaries.",
+      "tags": ["mcp", "audit", "security", "streamable-http", "review"],
+      "inputExample": {
+        "mcpUrl": "https://example.com/mcp",
+        "manifest": { "name": "my-mcp", "tools": [] }
+      }
     },
     {
       "name": "oracle_bazaar_rewrite",
       "tier": "paid",
       "priceUsd": 1.5,
-      "description": "Optimize and rewrite Bazaar catalog descriptions and tags for top search ranking."
+      "atomicAmount": "1500000",
+      "method": "POST",
+      "path": "/api/consult/oracle_bazaar_rewrite",
+      "description": "Optimize and rewrite Bazaar catalog descriptions, tags, and JSON schemas for maximum indexing ranking and autonomous agent conversion.",
+      "tags": ["bazaar", "catalog", "seo", "ranking", "discovery"],
+      "inputExample": {
+        "serviceName": "Sample Service",
+        "description": "We do research",
+        "targetAudience": "Autonomous DeFi swarms"
+      }
     },
     {
       "name": "complete_oracle_task",
       "tier": "paid",
       "priceUsd": 10.0,
-      "description": "Complete complex end-to-end blockchain attestation and smart contract inspection task."
+      "atomicAmount": "10000000",
+      "method": "POST",
+      "path": "/api/consult/complete_oracle_task",
+      "description": "Execute comprehensive blockchain attestation, multi-agent protocol architecture analysis, and custom smart contract inspection.",
+      "tags": ["attestation", "verification", "smart-contracts", "architecture", "task"],
+      "inputExample": {
+        "taskDescription": "Perform multi-chain settlement verification on Base mainnet",
+        "parameters": { "targetContract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" }
+      }
     }
   ],
+  "registries": {
+    "coinbaseBazaar": {
+      "validatorEndpoint": "https://api.cdp.coinbase.com/platform/v2/x402/validate",
+      "facilitatorEndpoint": "https://api.cdp.coinbase.com/platform/v2/x402",
+      "rankingRequirements": [
+        "Pass all 25 CDP preflight validation checks",
+        "Complete at least 1 mainnet seed settlement transaction ($0.10 USDC minimum)",
+        "Zero spender private keys on public host"
+      ]
+    },
+    "agentCash": {
+      "discoveryOrigin": "https://x402orcle.vercel.app",
+      "cliDiscover": "npx agentcash@latest discover https://x402orcle.vercel.app",
+      "cliAddSkill": "npx agentcash@latest add https://x402orcle.vercel.app",
+      "cliSearch": "npx agentcash@latest search \"oracle\""
+    },
+    "smithery": {
+      "configPath": "smithery.json",
+      "transport": "streamable-http",
+      "mcpEndpoint": "https://x402orcle.vercel.app/mcp"
+    },
+    "openAgents": {
+      "agentCardUrl": "https://x402orcle.vercel.app/.well-known/agent-card.json",
+      "agentsJsonUrl": "https://x402orcle.vercel.app/.well-known/agents.json",
+      "protocolVersion": "1.0"
+    },
+    "langChainLlamaIndex": {
+      "openApiSpec": "https://x402orcle.vercel.app/openapi.json",
+      "pythonModule": "scripts/langchain_llamaindex_tools.py",
+      "typeScriptModule": "scripts/langchain_llamaindex_tools.ts"
+    }
+  },
   "categories": [
     "Oracle",
     "Smart Contracts",
-    "Web Scraping",
+    "Diagnostics",
     "A2A Protocol",
     "MCP",
-    "Base Blockchain"
+    "Base Blockchain",
+    "Coinbase Bazaar",
+    "Autonomous Swarm"
   ]
 }

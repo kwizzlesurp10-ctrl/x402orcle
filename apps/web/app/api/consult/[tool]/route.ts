@@ -44,3 +44,17 @@ export async function POST(
   const { tool } = await ctx.params;
   return consult(req, tool);
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS, HEAD",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, Payment-Signature, PAYMENT-SIGNATURE, X-Payment, x402-version",
+      "Access-Control-Expose-Headers":
+        "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+    },
+  });
+}

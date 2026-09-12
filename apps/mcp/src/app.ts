@@ -18,11 +18,13 @@ import {
   agentCard,
   agentsJson,
   llmsTxt,
+  llmsFullTxt,
   agentsTxt,
   openApi,
   jsonLd,
   landingHtml,
   ORACLE_CONNECT_HOWTO,
+  jsonSchemaFromExample,
 } from "@x402orcle/oracle-brain";
 
 function paymentFromReq(req: Request): unknown | null {
@@ -101,6 +103,9 @@ export function createOracleApp(env: OracleEnv): Express {
   app.get("/.well-known/funding.json", (_req, res) => res.json(funding(env)));
   app.get("/llms.txt", (_req, res) => {
     res.type("text/plain").send(llmsTxt(env));
+  });
+  app.get("/llms-full.txt", (_req, res) => {
+    res.type("text/plain").send(llmsFullTxt(env));
   });
   app.get("/agents.txt", (_req, res) => {
     res.type("text/plain").send(agentsTxt(env));
@@ -189,7 +194,7 @@ export function createOracleApp(env: OracleEnv): Express {
           tools: TOOLS.map((t) => ({
             name: t.name,
             description: t.description,
-            inputSchema: { type: "object", properties: {}, additionalProperties: true },
+            inputSchema: jsonSchemaFromExample(t.inputExample),
           })),
         },
       });
