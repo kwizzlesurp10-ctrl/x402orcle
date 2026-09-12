@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "protocolVersion": "1.0",
+  "id": "x402orcle",
+  "name": "x402 Oracle",
+  "version": "1.0.0",
+  "description": "Paid & Free MCP + HTTP 402 wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC (eip155:8453). Autonomous state verification, attestation, and diagnostics.",
+  "url": "https://x402orcle.vercel.app",
+  "documentationUrl": "https://x402orcle.vercel.app/llms.txt",
+  "provider": {
+    "organization": "Local AI Integrations",
+    "url": "https://x402orcle.vercel.app"
+  },
+  "transports": [
+    {
+      "type": "http",
+      "url": "https://x402orcle.vercel.app/api/consult",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "type": "mcp-streamable-http",
+      "url": "https://x402orcle.vercel.app/mcp"
+    }
+  ],
+  "capabilities": {
+    "streaming": false,
+    "pushNotifications": false,
+    "stateTransitionHistory": false,
+    "extensions": [
+      {
+        "uri": "https://github.com/google-a2a/a2a-x402/v0.1",
+        "description": "x402 exact scheme on Base USDC",
+        "required": false,
+        "params": {
+          "network": "eip155:8453",
+          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+          "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402"
+        }
+      }
+    ]
+  },
+  "payments": {
+    "rails": [
+      {
+        "id": "x402",
+        "protocol": "x402",
+        "version": 2,
+        "network": "eip155:8453",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "assetSymbol": "USDC",
+        "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+        "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402",
+        "challengeHeader": "PAYMENT-REQUIRED",
+        "paymentHeader": "PAYMENT-SIGNATURE",
+        "catalog": "https://x402orcle.vercel.app/.well-known/x402"
+      }
+    ]
+  },
+  "skills": [
+    {
+      "id": "oracle_health",
+      "name": "Oracle Health",
+      "tier": "free",
+      "priceUsd": 0.0
+    },
+    {
+      "id": "oracle_pricing",
+      "name": "Oracle Pricing",
+      "tier": "free",
+      "priceUsd": 0.0
+    },
+    {
+      "id": "oracle_ask",
+      "name": "Oracle Ask",
+      "tier": "paid",
+      "priceUsd": 0.1
+    },
+    {
+      "id": "oracle_diagnose_402",
+      "name": "Oracle Diagnose 402",
+      "tier": "paid",
+      "priceUsd": 0.5
+    },
+    {
+      "id": "oracle_review_mcp",
+      "name": "Oracle Review MCP",
+      "tier": "paid",
+      "priceUsd": 3.0
+    },
+    {
+      "id": "oracle_bazaar_rewrite",
+      "name": "Oracle Bazaar Rewrite",
+      "tier": "paid",
+      "priceUsd": 1.5
+    },
+    {
+      "id": "complete_oracle_task",
+      "name": "Complete Oracle Task",
+      "tier": "paid",
+      "priceUsd": 10.0
+    }
+  ]
+}

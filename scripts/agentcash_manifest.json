@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "registry": "AgentCash Directory",
+  "origin": "https://x402orcle.vercel.app",
+  "name": "x402 Oracle",
+  "description": "Paid & Free wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC. Get 402 diagnostics, MCP reviews, and autonomous swarm attestations.",
+  "instructions": "All paid endpoints accept x402 v2 payment signatures in Base USDC. Retries are idempotent. Free health and pricing routes require no wallet signature.",
+  "commands": {
+    "discover": "npx agentcash@latest discover https://x402orcle.vercel.app",
+    "addSkill": "npx agentcash@latest add https://x402orcle.vercel.app",
+    "search": "npx agentcash@latest search \"oracle\""
+  },
+  "endpoints": [
+    {
+      "path": "/api/health",
+      "method": "GET",
+      "pricing": "free",
+      "description": "Health check & state verification"
+    },
+    {
+      "path": "/api/pricing",
+      "method": "GET",
+      "pricing": "free",
+      "description": "Active pricing matrix & limits"
+    },
+    {
+      "path": "/api/consult/oracle_ask",
+      "method": "POST",
+      "pricing": "$0.10",
+      "description": "General Oracle Q&A wisdom envelope",
+      "sample": "npx agentcash@latest fetch https://x402orcle.vercel.app/api/consult/oracle_ask -m POST -b '{\"question\":\"Why is my Bazaar listing unranked?\"}'"
+    },
+    {
+      "path": "/api/consult/oracle_diagnose_402",
+      "method": "POST",
+      "pricing": "$0.50",
+      "description": "x402 Payment Header & Facilitator Diagnostic",
+      "sample": "npx agentcash@latest fetch https://x402orcle.vercel.app/api/consult/oracle_diagnose_402 -m POST -b '{\"symptom\":\"401 FACILITATOR_AUTH_REQUIRED\"}'"
+    },
+    {
+      "path": "/api/consult/oracle_review_mcp",
+      "method": "POST",
+      "pricing": "$3.00",
+      "description": "Streamable-HTTP MCP Security & Spec Review"
+    },
+    {
+      "path": "/api/consult/oracle_bazaar_rewrite",
+      "method": "POST",
+      "pricing": "$1.50",
+      "description": "Bazaar Catalog SEO & JSON Schema Optimization"
+    },
+    {
+      "path": "/api/consult/complete_oracle_task",
+      "method": "POST",
+      "pricing": "$10.00",
+      "description": "Autonomous Smart Contract & Swarm Attestation"
+    }
+  ]
+}

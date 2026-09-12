@@ -1,0 +1,62 @@
+{
+  "$schema": "https://smithery.ai/schema/config.json",
+  "name": "@kwizzlesurp10-ctrl/x402orcle",
+  "version": "1.0.0",
+  "description": "Paid & Free MCP + HTTP 402 wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC (eip155:8453).",
+  "homepage": "https://x402orcle.vercel.app",
+  "repository": "https://github.com/kwizzlesurp10-ctrl/x402orcle",
+  "transport": {
+    "type": "streamable-http",
+    "url": "https://x402orcle.vercel.app/mcp"
+  },
+  "authentication": {
+    "type": "x402",
+    "network": "eip155:8453",
+    "pay_to": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402"
+  },
+  "tools": [
+    {
+      "name": "oracle_health",
+      "description": "Free health check, facilitator status, node state.",
+      "paid": false,
+      "priceUsd": 0.0
+    },
+    {
+      "name": "oracle_pricing",
+      "description": "Free rate matrix, limits, connect guidelines.",
+      "paid": false,
+      "priceUsd": 0.0
+    },
+    {
+      "name": "oracle_ask",
+      "description": "General Oracle Q&A wisdom envelope (verdict, prompt, risk, citations, receipt).",
+      "paid": true,
+      "priceUsd": 0.1
+    },
+    {
+      "name": "oracle_diagnose_402",
+      "description": "Diagnose failing x402 payment headers, facilitator verify/settle rejections, and schema errors.",
+      "paid": true,
+      "priceUsd": 0.5
+    },
+    {
+      "name": "oracle_review_mcp",
+      "description": "Review and validate streamable-HTTP MCP server manifests, pricing, and tool security.",
+      "paid": true,
+      "priceUsd": 3.0
+    },
+    {
+      "name": "oracle_bazaar_rewrite",
+      "description": "Optimize and rewrite Bazaar catalog descriptions and tags for top search ranking.",
+      "paid": true,
+      "priceUsd": 1.5
+    },
+    {
+      "name": "complete_oracle_task",
+      "description": "Complete complex end-to-end blockchain attestation and smart contract inspection task.",
+      "paid": true,
+      "priceUsd": 10.0
+    }
+  ]
+}
