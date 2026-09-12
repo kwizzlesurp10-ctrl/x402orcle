@@ -4,8 +4,38 @@ import { jsonLd } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../lib/env";
 
 export const metadata: Metadata = {
-  title: "x402 Oracle — 402 is the answer",
-  description: "402 is the answer. The Oracle is how you ask.",
+  title: "x402 Oracle — 402 is the answer | A2A & MCP Wisdom Market",
+  description: "Paid & Free MCP + HTTP 402 wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC (eip155:8453). Autonomous state verification, attestation, and diagnostics.",
+  keywords: [
+    "x402",
+    "A2A",
+    "agent to agent",
+    "oracle",
+    "MCP",
+    "Base",
+    "USDC",
+    "smart contracts",
+    "attestation",
+    "web crawler",
+    "AI agent swarm"
+  ],
+  authors: [{ name: "Local AI Integrations" }],
+  openGraph: {
+    title: "x402 Oracle — 402 is the answer",
+    description: "Paid & Free MCP + HTTP 402 wisdom market for autonomous agents on Base USDC.",
+    url: "https://x402orcle.vercel.app",
+    siteName: "x402 Oracle",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "x402 Oracle — 402 is the answer",
+    description: "Paid & Free MCP + HTTP 402 wisdom market for autonomous agents on Base USDC.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
