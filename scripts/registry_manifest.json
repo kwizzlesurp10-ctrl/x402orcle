@@ -1,0 +1,82 @@
+{
+  "name": "x402 Oracle",
+  "slug": "x402orcle",
+  "version": "1.0.0",
+  "description": "Paid & Free MCP + HTTP 402 wisdom market for x402, MCP, A2A, and Bazaar agents on Base USDC (eip155:8453). Autonomous state verification, attestation, and diagnostics.",
+  "homepage": "https://x402orcle.vercel.app",
+  "repository": "https://github.com/kwizzlesurp10-ctrl/x402orcle",
+  "protocols": [
+    "x402",
+    "mpp",
+    "a2a",
+    "mcp"
+  ],
+  "networks": [
+    "eip155:8453"
+  ],
+  "payment": {
+    "protocol": "x402",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "assetSymbol": "USDC",
+    "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402"
+  },
+  "discovery": {
+    "x402": "https://x402orcle.vercel.app/.well-known/x402",
+    "agentCard": "https://x402orcle.vercel.app/.well-known/agent-card.json",
+    "mcp": "https://x402orcle.vercel.app/.well-known/mcp.json",
+    "llmsTxt": "https://x402orcle.vercel.app/llms.txt",
+    "agentsTxt": "https://x402orcle.vercel.app/agents.txt",
+    "openapi": "https://x402orcle.vercel.app/openapi.json"
+  },
+  "tools": [
+    {
+      "name": "oracle_health",
+      "tier": "free",
+      "description": "Free endpoint returning server health, node state, and chain synchronization status."
+    },
+    {
+      "name": "oracle_pricing",
+      "tier": "free",
+      "description": "Free endpoint returning current rate matrix, supported networks, and facilitator configuration."
+    },
+    {
+      "name": "oracle_ask",
+      "tier": "paid",
+      "priceUsd": 0.1,
+      "description": "General wisdom & protocol question answering with structured wisdom envelope response."
+    },
+    {
+      "name": "oracle_diagnose_402",
+      "tier": "paid",
+      "priceUsd": 0.5,
+      "description": "Diagnose failing x402 payment headers, facilitator rejections, and schema errors."
+    },
+    {
+      "name": "oracle_review_mcp",
+      "tier": "paid",
+      "priceUsd": 3.0,
+      "description": "Review and validate streamable-HTTP MCP server manifests, pricing, and tool security."
+    },
+    {
+      "name": "oracle_bazaar_rewrite",
+      "tier": "paid",
+      "priceUsd": 1.5,
+      "description": "Optimize and rewrite Bazaar catalog descriptions and tags for top search ranking."
+    },
+    {
+      "name": "complete_oracle_task",
+      "tier": "paid",
+      "priceUsd": 10.0,
+      "description": "Complete complex end-to-end blockchain attestation and smart contract inspection task."
+    }
+  ],
+  "categories": [
+    "Oracle",
+    "Smart Contracts",
+    "Web Scraping",
+    "A2A Protocol",
+    "MCP",
+    "Base Blockchain"
+  ]
+}
