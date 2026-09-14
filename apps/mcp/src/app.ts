@@ -111,6 +111,21 @@ export function createOracleApp(env: OracleEnv): Express {
     res.type("text/plain").send(agentsTxt(env));
   });
   app.get("/openapi.json", (_req, res) => res.json(openApi(env)));
+  app.get("/docs", (_req, res) => {
+    res.type("html").send(`<!DOCTYPE html>
+<html>
+<head>
+  <title>${SERVICE.name} - API Documentation</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@scalar/api-reference/dist/style.min.css">
+</head>
+<body style="margin: 0; background: #0b0f17;">
+  <script id="api-reference" data-url="/openapi.json"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`);
+  });
   app.get("/jsonld", (_req, res) => res.json(jsonLd(env)));
 
   app.post("/v1/demo/mint-payment", (req, res) => {

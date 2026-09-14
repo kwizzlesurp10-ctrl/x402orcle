@@ -1,4 +1,14 @@
-import { randomBytes } from "node:crypto";
+function randomHex(bytesLen: number): string {
+  const bytes = new Uint8Array(bytesLen);
+  if (typeof globalThis !== "undefined" && globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytesLen; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export function buildDemoPaymentPayload(opts: {
   accepts: {
@@ -19,14 +29,14 @@ export function buildDemoPaymentPayload(opts: {
       : undefined,
     accepted,
     payload: {
-      signature: `demo-sig-${randomBytes(8).toString("hex")}`,
+      signature: `demo-sig-${randomHex(8)}`,
       authorization: {
         from: payer,
         to: accepted.payTo,
         value: accepted.amount,
         validAfter: "0",
         validBefore: String(Math.floor(Date.now() / 1000) + 3600),
-        nonce: `0x${randomBytes(32).toString("hex")}`,
+        nonce: `0x${randomHex(32)}`,
       },
     },
   };

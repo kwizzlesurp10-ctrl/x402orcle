@@ -37,4 +37,5 @@ export {
 export { buildDemoPaymentPayload, demoVerify, demoPayerFromPayload } from "./demo-payment.js";
 export { handleConsult, facilitatorVerifyThenSettle, type ConsultResult } from "./http.js";
 export { generateCdpJwt, cdpAuthHeaders } from "./cdp-jwt.js";
+export { validatePaymentEnvelope, type SigValidationResult } from "./validator.js";
 export { landingHtml, landingConsultCopy, LANDING_ASK_BODY } from "./landing.js";

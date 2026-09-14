@@ -23,6 +23,7 @@ const DISCOVERY_SURFACES = [
   { path: '/llms.txt', label: 'LLM Crawler Guide', expect: 'text/plain' },
   { path: '/agents.txt', label: 'Agent Permission Robots', expect: 'text/plain' },
   { path: '/openapi.json', label: 'OpenAPI 3.1 + x-payment', expect: 'application/json' },
+  { path: '/docs', label: 'Interactive Hosted API Specs (Scalar)', expect: 'text/html' },
   { path: '/api/health', label: 'Health & State Probe', expect: 'application/json' },
   { path: '/api/pricing', label: 'Active Rate Matrix', expect: 'application/json' }
 ];

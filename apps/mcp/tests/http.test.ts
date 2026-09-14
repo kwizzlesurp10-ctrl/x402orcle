@@ -94,4 +94,11 @@ describe("oracle http", () => {
     expect(landing.text).not.toContain("/v1/demo/mint-payment");
     expect(landing.text).toContain("PAYMENT-SIGNATURE");
   });
+
+  it("/docs returns hosted API documentation", async () => {
+    const res = await request(app).get("/docs");
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("API Documentation");
+    expect(res.text).toContain("scalar");
+  });
 });

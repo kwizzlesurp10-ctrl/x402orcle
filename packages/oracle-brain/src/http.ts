@@ -1,4 +1,13 @@
-import { randomUUID } from "node:crypto";
+function generateUuid(): string {
+  if (typeof globalThis !== "undefined" && globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 import { clampPrice, requireTool } from "./catalog.js";
 import { gatePaidTool } from "./policy.js";
 import { maybeLlmConsult } from "./consult.js";
@@ -162,11 +171,13 @@ export async function handleConsult(opts: {
     priceUsd,
     transport: opts.transport,
   });
+  const wwwAuthHeader = `x402 scheme="exact", network="${opts.env.network}", payTo="${opts.env.payTo}"`;
   if (tool.tier === "paid" && !opts.payment) {
     return {
       status: 402,
       headers: {
         "PAYMENT-REQUIRED": encodePaymentRequired(pr),
+        "WWW-Authenticate": wwwAuthHeader,
         "Cache-Control": "no-store",
       },
       body: pr,
@@ -178,7 +189,10 @@ export async function handleConsult(opts: {
       if (!v.ok) {
         return {
           status: 402,
-          headers: { "PAYMENT-REQUIRED": encodePaymentRequired(pr) },
+          headers: {
+            "PAYMENT-REQUIRED": encodePaymentRequired(pr),
+            "WWW-Authenticate": wwwAuthHeader,
+          },
           body: pr,
         };
       }
@@ -192,7 +206,7 @@ export async function handleConsult(opts: {
           network: opts.env.network,
           payTo: opts.env.payTo,
           mode: "demo",
-          settlementId: `demo-${randomUUID()}`,
+          settlementId: `demo-${generateUuid()}`,
           payer: v.payer,
           paidAt: new Date().toISOString(),
         },
@@ -209,7 +223,10 @@ export async function handleConsult(opts: {
     if (!live.ok) {
       return {
         status: 402,
-        headers: { "PAYMENT-REQUIRED": encodePaymentRequired(pr) },
+        headers: {
+          "PAYMENT-REQUIRED": encodePaymentRequired(pr),
+          "WWW-Authenticate": wwwAuthHeader,
+        },
         body: {
           ...pr,
           facilitator_error: live.reason,
@@ -230,7 +247,7 @@ export async function handleConsult(opts: {
         network: opts.env.network,
         payTo: opts.env.payTo,
         mode: "live",
-        settlementId: live.transaction || randomUUID(),
+        settlementId: live.transaction || generateUuid(),
         transaction: live.transaction,
         payer: live.payer,
         paidAt: new Date().toISOString(),
