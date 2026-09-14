@@ -7,6 +7,7 @@ import {
   ORACLE_CONNECT_HOWTO,
   jsonSchemaFromExample,
   mcpJson,
+  decodePaymentHeader,
 } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../lib/env";
 
@@ -125,11 +126,21 @@ export async function POST(req: NextRequest) {
         },
       );
     }
+    const paymentHeader =
+      req.headers.get("payment-signature") ||
+      req.headers.get("PAYMENT-SIGNATURE") ||
+      req.headers.get("Payment-Signature") ||
+      req.headers.get("x-payment") ||
+      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+      "";
+    const payment =
+      body.params?._meta?.["x402/payment"] ??
+      (paymentHeader ? decodePaymentHeader(paymentHeader) : null);
     const result = await handleConsult({
       env,
       toolName: name,
       input: body.params?.arguments ?? {},
-      payment: body.params?._meta?.["x402/payment"] ?? null,
+      payment,
       transport: "mcp",
     });
     if (result.status === 402) {

@@ -358,3 +358,47 @@ describe("live facilitator consult", () => {
     expect(body.receipt?.transaction).toBe("0xdead");
   });
 });
+
+describe("validator", () => {
+  it("validates a valid v2 payment envelope", async () => {
+    const { validatePaymentEnvelope, buildDemoPaymentPayload, buildPaymentRequired, requireTool, clampPrice } = await import("../src/index.js");
+    const tool = requireTool("oracle_ask");
+    const pr = buildPaymentRequired({ env, tool, priceUsd: clampPrice(tool, undefined, 25) });
+    const payload = buildDemoPaymentPayload({
+      accepts: pr.accepts[0]!,
+      payer: "0x1111111111111111111111111111111111111111",
+      resourceUrl: pr.resource.url,
+    });
+    const result = validatePaymentEnvelope(payload, env.payTo, env.network);
+    expect(result.isValid).toBe(true);
+    expect(result.score).toBe(100);
+    expect(result.decoded.payer).toBe("0x1111111111111111111111111111111111111111");
+  });
+
+  it("detects payTo destination mismatch and expired timestamp", async () => {
+    const { validatePaymentEnvelope } = await import("../src/index.js");
+    const malformed = {
+      x402Version: 2,
+      accepted: { scheme: "exact", network: "eip155:8453", payTo: "0xWrongAddress" },
+      payload: {
+        signature: "0x1234567890abcdef1234567890",
+        authorization: {
+          from: "0x1111",
+          to: "0xWrongAddress",
+          value: "100000",
+          validAfter: "0",
+          validBefore: "1000", // Expired timestamp
+          nonce: "0x" + "00".repeat(32),
+        },
+      },
+    };
+    const result = validatePaymentEnvelope(malformed, "0xAB745e5F576667037696e78ba7dA28E193E4423D", "eip155:8453");
+    expect(result.isValid).toBe(false);
+    expect(result.score).toBeLessThan(100);
+    const payToCheck = result.checks.find((c) => c.name.includes("payTo"));
+    expect(payToCheck?.passed).toBe(false);
+    const timeCheck = result.checks.find((c) => c.name.includes("Temporal"));
+    expect(timeCheck?.passed).toBe(false);
+  });
+});
+

@@ -7,7 +7,14 @@ export const dynamic = "force-dynamic";
 async function consult(req: NextRequest, tool: string) {
   const env = oracleEnv();
   const paymentHeader =
-    req.headers.get("payment-signature") || req.headers.get("PAYMENT-SIGNATURE") || "";
+    req.headers.get("payment-signature") ||
+    req.headers.get("PAYMENT-SIGNATURE") ||
+    req.headers.get("Payment-Signature") ||
+    req.headers.get("payment") ||
+    req.headers.get("Payment") ||
+    req.headers.get("x-payment") ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+    "";
   let input: Record<string, unknown> = {};
   if (req.method === "POST") {
     try {
@@ -26,7 +33,13 @@ async function consult(req: NextRequest, tool: string) {
     payment,
     transport: "http",
   });
-  return NextResponse.json(result.body, { status: result.status, headers: result.headers });
+  const headers = new Headers(result.headers || {});
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set(
+    "Access-Control-Expose-Headers",
+    "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, WWW-Authenticate, x402-version",
+  );
+  return NextResponse.json(result.body, { status: result.status, headers });
 }
 
 export async function GET(
