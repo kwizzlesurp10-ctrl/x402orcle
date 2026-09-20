@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DEFAULT_PAY_TO, isRetiredPayTo } from "./payto.js";
+
 const ADDRESS = z
   .string()
   .regex(/^0x[a-fA-F0-9]{40}$/, "X402_PAY_TO must be a 20-byte address (0x + 40 hex), never a private key");
@@ -8,7 +10,8 @@ const PRIVATE_KEY_SHAPE = /^0x[a-fA-F0-9]{64}$/;
 
 export const EnvSchema = z
   .object({
-    PUBLIC_BASE_URL: z.string().min(1).default("http://127.0.0.1:4021"),
+    PUBLIC_BASE_URL: z.string().url().default("http://127.0.0.1:4021"),
+    SWARM_PUBLIC_URL: z.string().url().optional(),
     X402_PAY_TO: z.string().optional(),
     X402_PAY_TO_ADDRESS: z.string().optional(),
     X402_NETWORK: z.string().default("eip155:8453"),
@@ -16,6 +19,8 @@ export const EnvSchema = z
       .string()
       .default("https://api.cdp.coinbase.com/platform/v2/x402"),
     X402_FACILITATOR_URL_FALLBACK: z.string().optional(),
+    FACILITATOR_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(10_000),
+    LLM_TIMEOUT_MS: z.coerce.number().int().min(500).max(120_000).default(30_000),
     MAX_PRICE_USD: z.coerce.number().positive().max(100).default(25),
     DEMO_MODE: z.string().optional(),
     DEMO_ALLOW_PUBLIC: z.string().optional(),
@@ -29,17 +34,10 @@ export const EnvSchema = z
     CDP_API_KEY_SECRET: z.string().optional(),
     KEY_NAME: z.string().optional(),
     KEY_SECRET: z.string().optional(),
+    OPERATOR_WALLETS: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    const payTo = data.X402_PAY_TO || data.X402_PAY_TO_ADDRESS;
-    if (!payTo) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "X402_PAY_TO is required (seller receive address)",
-        path: ["X402_PAY_TO"],
-      });
-      return;
-    }
+    const payTo = data.X402_PAY_TO || data.X402_PAY_TO_ADDRESS || DEFAULT_PAY_TO;
     if (PRIVATE_KEY_SHAPE.test(payTo)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -61,10 +59,13 @@ export type RawEnv = z.infer<typeof EnvSchema>;
 
 export type OracleEnv = {
   publicBaseUrl: string;
+  swarmPublicUrl?: string;
   payTo: `0x${string}`;
   network: string;
   facilitatorUrl: string;
   facilitatorFallback?: string;
+  facilitatorTimeoutMs: number;
+  llmTimeoutMs: number;
   maxPriceUsd: number;
   demoMode: boolean;
   port: number;
@@ -73,6 +74,8 @@ export type OracleEnv = {
   llmBaseUrl: string;
   llmModel: string;
   sellerLeakWarning: boolean;
+  payToRetiredWarning: boolean;
+  operatorWallets: Set<string>;
   cdpApiKeyId?: string;
   cdpApiKeySecret?: string;
 };
@@ -84,19 +87,28 @@ function truthy(v: string | undefined, fallback: boolean): boolean {
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): OracleEnv {
   const parsed = EnvSchema.parse(source);
-  const payTo = (parsed.X402_PAY_TO || parsed.X402_PAY_TO_ADDRESS)!;
+  const payTo = (parsed.X402_PAY_TO || parsed.X402_PAY_TO_ADDRESS || DEFAULT_PAY_TO) as `0x${string}`;
   const sellerLeakWarning = Boolean(parsed.EVM_PRIVATE_KEY && parsed.EVM_PRIVATE_KEY.length > 0);
   const publicBaseUrl = parsed.PUBLIC_BASE_URL.replace(/\/$/, "");
+  const swarmPublicUrl = parsed.SWARM_PUBLIC_URL?.replace(/\/$/, "");
   const allowPublicDemo = truthy(parsed.DEMO_ALLOW_PUBLIC, false);
   const httpsPublic = publicBaseUrl.startsWith("https://");
   const demoRequested = truthy(parsed.DEMO_MODE, !httpsPublic);
   const demoMode = demoRequested && (!httpsPublic || allowPublicDemo);
+  const operatorWallets = new Set<string>();
+  for (const part of (parsed.OPERATOR_WALLETS || "").split(",")) {
+    const w = part.trim().toLowerCase();
+    if (w.startsWith("0x") && w.length === 42) operatorWallets.add(w);
+  }
   return {
     publicBaseUrl,
-    payTo: payTo as `0x${string}`,
+    swarmPublicUrl,
+    payTo,
     network: parsed.X402_NETWORK,
     facilitatorUrl: parsed.X402_FACILITATOR_URL,
     facilitatorFallback: parsed.X402_FACILITATOR_URL_FALLBACK,
+    facilitatorTimeoutMs: parsed.FACILITATOR_TIMEOUT_MS,
+    llmTimeoutMs: parsed.LLM_TIMEOUT_MS,
     maxPriceUsd: parsed.MAX_PRICE_USD,
     demoMode,
     port: parsed.PORT,
@@ -105,6 +117,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): OracleEnv {
     llmBaseUrl: parsed.ORACLE_LLM_BASE_URL || "https://api.x.ai/v1",
     llmModel: parsed.ORACLE_LLM_MODEL || "grok-4",
     sellerLeakWarning,
+    payToRetiredWarning: isRetiredPayTo(payTo),
+    operatorWallets,
     cdpApiKeyId: parsed.CDP_API_KEY_ID || parsed.KEY_NAME,
     cdpApiKeySecret: parsed.CDP_API_KEY_SECRET || parsed.KEY_SECRET,
   };

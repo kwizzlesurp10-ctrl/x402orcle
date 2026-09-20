@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D"
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357"
       DEMO_MODE: "true"
       PUBLIC_BASE_URL: "http://127.0.0.1:4021"
       MAX_PRICE_USD: "25"

@@ -8,18 +8,27 @@ function generateUuid(): string {
     return v.toString(16);
   });
 }
-import { clampPrice, requireTool } from "./catalog.js";
+import { z } from "zod";
+import { clampPrice, getTool, validateToolInput } from "./catalog.js";
 import { gatePaidTool } from "./policy.js";
 import { maybeLlmConsult } from "./consult.js";
 import { buildPaymentRequired, encodePaymentRequired, type PaymentAccept } from "./challenge.js";
 import type { OracleEnv } from "./env.js";
 import { demoVerify } from "./demo-payment.js";
 import { cdpAuthHeaders } from "./cdp-jwt.js";
+import { recordChallenge, recordDemandSale } from "./demand.js";
+import { recordRevenue } from "./ledger.js";
 
 export type ConsultResult = {
-  status: number;
+  status: 200 | 400 | 404 | 402;
   headers?: Record<string, string>;
   body: unknown;
+};
+
+export type ConsultError = {
+  code: "INVALID_REQUEST" | "TOOL_NOT_FOUND";
+  message: string;
+  issues?: Array<{ path: string; message: string }>;
 };
 
 export type FacilitatorVerifyResult = {
@@ -28,6 +37,18 @@ export type FacilitatorVerifyResult = {
   transaction?: string;
   reason?: string;
 };
+
+const FacilitatorVerifyResponseSchema = z.object({
+  isValid: z.boolean(),
+  payer: z.string().optional(),
+  invalidReason: z.string().optional(),
+});
+
+const FacilitatorSettleResponseSchema = z.object({
+  success: z.boolean(),
+  payer: z.string().optional(),
+  transaction: z.string().optional(),
+});
 
 function facilitatorBases(env: OracleEnv): string[] {
   const out: string[] = [];
@@ -65,6 +86,7 @@ async function verifyThenSettleAt(opts: {
 
   const verifyRes = await opts.fetchImpl(verifyUrl, {
     method: "POST",
+    signal: AbortSignal.timeout(opts.env.facilitatorTimeoutMs),
     headers,
     body: JSON.stringify(payload),
   });
@@ -74,11 +96,7 @@ async function verifyThenSettleAt(opts: {
   if (!verifyRes.ok) {
     return { ok: false, reason: `FACILITATOR_VERIFY_${verifyRes.status}` };
   }
-  const verifyJson = (await verifyRes.json()) as {
-    isValid?: boolean;
-    payer?: string;
-    invalidReason?: string;
-  };
+  const verifyJson = FacilitatorVerifyResponseSchema.parse(await verifyRes.json());
   if (!verifyJson.isValid) {
     return { ok: false, payer: verifyJson.payer, reason: verifyJson.invalidReason || "INVALID_PAYMENT" };
   }
@@ -95,6 +113,7 @@ async function verifyThenSettleAt(opts: {
   };
   const settleRes = await opts.fetchImpl(settleUrl, {
     method: "POST",
+    signal: AbortSignal.timeout(opts.env.facilitatorTimeoutMs),
     headers: settleHeaders,
     body: JSON.stringify(payload),
   });
@@ -104,11 +123,7 @@ async function verifyThenSettleAt(opts: {
   if (!settleRes.ok) {
     return { ok: false, reason: `FACILITATOR_SETTLE_${settleRes.status}` };
   }
-  const settleJson = (await settleRes.json()) as {
-    success?: boolean;
-    payer?: string;
-    transaction?: string;
-  };
+  const settleJson = FacilitatorSettleResponseSchema.parse(await settleRes.json());
   if (!settleJson.success) {
     return { ok: false, reason: "FACILITATOR_SETTLE_FAILED" };
   }
@@ -129,16 +144,31 @@ export async function facilitatorVerifyThenSettle(opts: {
   const bases = facilitatorBases(opts.env);
   let last: FacilitatorVerifyResult = { ok: false, reason: "FACILITATOR_VERIFY_FAILED" };
   for (const base of bases) {
-    const result = await verifyThenSettleAt({
-      env: opts.env,
-      base,
-      payment: opts.payment,
-      requirements: opts.requirements,
-      fetchImpl,
-    });
+    let result: FacilitatorVerifyResult;
+    try {
+      result = await verifyThenSettleAt({
+        env: opts.env,
+        base,
+        payment: opts.payment,
+        requirements: opts.requirements,
+        fetchImpl,
+      });
+    } catch (error) {
+      result = {
+        ok: false,
+        reason: error instanceof Error && error.name === "TimeoutError"
+          ? "FACILITATOR_TIMEOUT"
+          : "FACILITATOR_UNAVAILABLE",
+      };
+    }
     if (result.ok) return result;
     last = result;
-    if (result.reason === "FACILITATOR_AUTH_REQUIRED" || result.reason?.startsWith("FACILITATOR_VERIFY_")) {
+    if (
+      result.reason === "FACILITATOR_AUTH_REQUIRED" ||
+      result.reason === "FACILITATOR_TIMEOUT" ||
+      result.reason === "FACILITATOR_UNAVAILABLE" ||
+      result.reason?.startsWith("FACILITATOR_VERIFY_")
+    ) {
       continue;
     }
     return result;
@@ -152,19 +182,20 @@ export async function handleConsult(opts: {
   input: Record<string, unknown>;
   payment: unknown | null;
   transport: "http" | "mcp";
+  execution?: "challenge" | "execute";
   fetchImpl?: typeof fetch;
 }): Promise<ConsultResult> {
-  const tool = requireTool(opts.toolName);
-  const priceUsd = clampPrice(tool, undefined, opts.env.maxPriceUsd);
-  const gate = gatePaidTool({
-    toolName: tool.name,
-    priceUsd,
-    maxPriceUsd: opts.env.maxPriceUsd,
-    userText: JSON.stringify(opts.input),
-  });
-  if (!gate.ok) {
-    return { status: 400, body: { code: gate.code, message: gate.message } };
+  const tool = getTool(opts.toolName);
+  if (!tool || tool.tier !== "paid") {
+    return {
+      status: 404,
+      body: {
+        code: "TOOL_NOT_FOUND",
+        message: `Unknown paid tool: ${opts.toolName}`,
+      } satisfies ConsultError,
+    };
   }
+  const priceUsd = clampPrice(tool, undefined, opts.env.maxPriceUsd);
   const pr = buildPaymentRequired({
     env: opts.env,
     tool,
@@ -172,7 +203,44 @@ export async function handleConsult(opts: {
     transport: opts.transport,
   });
   const wwwAuthHeader = `x402 scheme="exact", network="${opts.env.network}", payTo="${opts.env.payTo}"`;
-  if (tool.tier === "paid" && !opts.payment) {
+  if (opts.execution === "challenge") {
+    recordChallenge(tool.name);
+    return {
+      status: 402,
+      headers: {
+        "PAYMENT-REQUIRED": encodePaymentRequired(pr),
+        "WWW-Authenticate": wwwAuthHeader,
+        "Cache-Control": "no-store",
+      },
+      body: pr,
+    };
+  }
+  const parsedInput = validateToolInput(tool, opts.input);
+  if (!parsedInput.success) {
+    return {
+      status: 400,
+      body: {
+        code: "INVALID_REQUEST",
+        message: `Invalid request for ${tool.name}`,
+        issues: parsedInput.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      } satisfies ConsultError,
+    };
+  }
+  const input = parsedInput.data;
+  const gate = gatePaidTool({
+    toolName: tool.name,
+    priceUsd,
+    maxPriceUsd: opts.env.maxPriceUsd,
+    userText: JSON.stringify(input),
+  });
+  if (!gate.ok) {
+    return { status: 400, body: { code: gate.code, message: gate.message } };
+  }
+  if (!opts.payment) {
+    recordChallenge(tool.name);
     return {
       status: 402,
       headers: {
@@ -199,7 +267,7 @@ export async function handleConsult(opts: {
       const envl = await maybeLlmConsult({
         tool,
         env: opts.env,
-        input: opts.input,
+        input,
         receipt: {
           tool: tool.name,
           priceUsd,
@@ -211,7 +279,32 @@ export async function handleConsult(opts: {
           paidAt: new Date().toISOString(),
         },
       });
-      return { status: 200, body: envl };
+      const revenue = recordRevenue({
+        productId: tool.name,
+        network: opts.env.network,
+        amountUsd: priceUsd,
+        payer: v.payer,
+        payTo: opts.env.payTo,
+        mode: "demo",
+        operatorWallets: opts.env.operatorWallets,
+      });
+      recordDemandSale({
+        resource: tool.name,
+        amountUsd: priceUsd,
+        isOperatorSettle: revenue?.is_operator_settle ?? null,
+      });
+      return {
+        status: 200,
+        headers: {
+          "PAYMENT-RESPONSE": encodePaymentResponse({
+            transaction: envl.receipt?.settlementId,
+            network: opts.env.network,
+            payer: v.payer,
+          }),
+          "Cache-Control": "no-store",
+        },
+        body: envl,
+      };
     }
 
     const live = await facilitatorVerifyThenSettle({
@@ -240,7 +333,7 @@ export async function handleConsult(opts: {
     const envl = await maybeLlmConsult({
       tool,
       env: opts.env,
-      input: opts.input,
+      input,
       receipt: {
         tool: tool.name,
         priceUsd,
@@ -253,7 +346,49 @@ export async function handleConsult(opts: {
         paidAt: new Date().toISOString(),
       },
     });
-    return { status: 200, body: envl };
+    const revenue = recordRevenue({
+      productId: tool.name,
+      network: opts.env.network,
+      amountUsd: priceUsd,
+      tx: live.transaction,
+      payer: live.payer,
+      payTo: opts.env.payTo,
+      mode: "live",
+      operatorWallets: opts.env.operatorWallets,
+    });
+    recordDemandSale({
+      resource: tool.name,
+      amountUsd: priceUsd,
+      isOperatorSettle: revenue?.is_operator_settle ?? null,
+    });
+    return {
+      status: 200,
+      headers: {
+        "PAYMENT-RESPONSE": encodePaymentResponse({
+          transaction: live.transaction,
+          network: opts.env.network,
+          payer: live.payer,
+        }),
+        "Cache-Control": "no-store",
+      },
+      body: envl,
+    };
   }
   return { status: 200, body: { ok: true } };
+}
+
+function encodePaymentResponse(input: {
+  transaction?: string;
+  network: string;
+  payer?: string;
+}): string {
+  return Buffer.from(
+    JSON.stringify({
+      success: true,
+      transaction: input.transaction,
+      network: input.network,
+      payer: input.payer,
+    }),
+    "utf8",
+  ).toString("base64");
 }

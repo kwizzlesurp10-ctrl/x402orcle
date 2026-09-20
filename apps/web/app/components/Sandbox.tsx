@@ -160,7 +160,7 @@ export function Sandbox() {
 
     const accepts = (decodedChallenge as { accepts?: Record<string, unknown>[] }).accepts?.[0] || {};
     const amount = String(accepts.amount || "100000");
-    const payTo = String(accepts.payTo || "0xAB745e5F576667037696e78ba7dA28E193E4423D");
+    const payTo = String(accepts.payTo || "0x05e1720bB82F86B5bc7940a99FDC702E32256357");
     const network = String(accepts.network || "eip155:8453");
     const payer = walletAddress || "0xdemo000000000000000000000000000000000001";
 
@@ -241,7 +241,7 @@ export function Sandbox() {
           .join("")}`,
         authorization: {
           from: payer,
-          to: String(accepts.payTo || "0xAB745e5F576667037696e78ba7dA28E193E4423D"),
+          to: String(accepts.payTo || "0x05e1720bB82F86B5bc7940a99FDC702E32256357"),
           value: String(accepts.amount || "100000"),
           validAfter: "0",
           validBefore: String(Math.floor(Date.now() / 1000) + 3600),

@@ -11,13 +11,13 @@ const SAMPLE_VALID_ENVELOPE = {
     network: "eip155:8453",
     amount: "100000",
     asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    payTo: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    payTo: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
   },
   payload: {
     signature: "0x8f2a1b9c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
     authorization: {
       from: "0x3a4f100200300400500600700800900a00b00c0d",
-      to: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      to: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       value: "100000",
       validAfter: "0",
       validBefore: String(Math.floor(Date.now() / 1000) + 3600),
@@ -33,13 +33,13 @@ const SAMPLE_EXPIRED_ENVELOPE = {
     network: "eip155:8453",
     amount: "100000",
     asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    payTo: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    payTo: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
   },
   payload: {
     signature: "0x8f2a1b9c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
     authorization: {
       from: "0x3a4f100200300400500600700800900a00b00c0d",
-      to: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      to: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       value: "100000",
       validAfter: "0",
       validBefore: "1600000000", // Expired timestamp

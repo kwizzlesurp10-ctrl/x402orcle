@@ -14,7 +14,7 @@
 
 ## 🚀 Mission Architecture & First Principles
 
-1. **Zero Spend Keys on Host**: The seller host holds **0 private keys**. Attack surface is mathematically eliminated. Receiver address is public vault `0xAB745e5F576667037696e78ba7dA28E193E4423D`.
+1. **Zero Spend Keys on Host**: The seller host holds **0 private keys**. Attack surface is mathematically eliminated. Receiver address is public vault `0x05e1720bB82F86B5bc7940a99FDC702E32256357`.
 2. **Deterministic 402/200 Cycle**: Unpaid probes receive RFC HTTP 402 + Base64 `PAYMENT-REQUIRED` challenge headers. Signed EIP-712 envelopes settle gaslessly and return verifiable Wisdom Envelopes.
 3. **Sub-Millisecond Telemetry**: Real-time round-trip latency tracking (P99 < 25ms), continuous health checks, and live CDP facilitator verification.
 4. **Autonomous Machine Discovery**: Complete native support for MCP (Model Context Protocol), Google Agent-to-Agent (A2A), xAI Grok, OpenAPI 3.1, and LLMs.txt.
@@ -39,6 +39,10 @@
 | **JSON-LD Schema Graph** | `/jsonld` | Schema.org semantic WebAPI & SoftwareApplication graph |
 | **Health Telemetry** | `/api/health` | Live operational status, timestamp, and network posture |
 | **Pricing Menu** | `/api/pricing` | Free and paid capabilities menu with connection guides |
+| **Revenue ledger** | `/ledger/revenue` | Settled sales (external vs operator attribution) — parity with x402-mcp |
+| **Storefront revenue** | `/swarm/revenue` | Aggregated USDC totals by product |
+| **Demand funnel** | `/demand` | 402 challenges vs settled sales |
+| **Wallet** | `/wallet` | Public receive address + retired-payTo warning |
 
 ---
 
@@ -93,13 +97,13 @@
     "network": "eip155:8453",
     "amount": "100000",
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D"
+    "payTo": "0x05e1720bB82F86B5bc7940a99FDC702E32256357"
   },
   "payload": {
     "signature": "0x...",
     "authorization": {
       "from": "0xPayerWalletAddress",
-      "to": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      "to": "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       "value": "100000",
       "validAfter": "0",
       "validBefore": "1770000000",
@@ -121,13 +125,14 @@ cp .env.example .env
 
 ```ini
 # Environment variables (NEVER place spend keys on the host)
-X402_PAY_TO=0xAB745e5F576667037696e78ba7dA28E193E4423D
+X402_PAY_TO=0x05e1720bB82F86B5bc7940a99FDC702E32256357
 X402_NETWORK=eip155:8453
 X402_FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402
 CDP_API_KEY_ID=                     # CDP API Key ID for JWT auth (Not a wallet key)
 CDP_API_KEY_SECRET=                 # CDP API Secret
 MAX_PRICE_USD=25
 DEMO_MODE=true                      # Enables local DemoFacilitator simulation
+SWARM_PUBLIC_URL=                   # Optional discovery link; Oracle never calls or pays it internally
 ```
 
 ### 2. Install & Run
@@ -138,7 +143,7 @@ pnpm install
 # Run all test suites (oracle-brain & mcp)
 pnpm test
 
-# Run Next.js Web App (:3000)
+# Run Next.js Web App (:3001)
 pnpm --filter @x402orcle/web dev
 
 # Run Streamable MCP Server (:4021)

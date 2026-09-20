@@ -1,4 +1,4 @@
-import { loadEnv, type OracleEnv } from "@x402orcle/oracle-brain";
+import { loadEnv, type OracleEnv, DEFAULT_PAY_TO } from "@x402orcle/oracle-brain";
 
 let cached: OracleEnv | null = null;
 
@@ -8,7 +8,7 @@ function publicBase(): string {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://127.0.0.1:3000";
+  return "http://127.0.0.1:3001";
 }
 
 export function oracleEnv(): OracleEnv {
@@ -18,7 +18,7 @@ export function oracleEnv(): OracleEnv {
     X402_PAY_TO:
       process.env.X402_PAY_TO ||
       process.env.X402_PAY_TO_ADDRESS ||
-      "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      DEFAULT_PAY_TO,
     DEMO_MODE: process.env.DEMO_MODE ?? "true",
     PUBLIC_BASE_URL: publicBase(),
   });

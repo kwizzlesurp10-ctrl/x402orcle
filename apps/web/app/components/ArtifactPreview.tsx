@@ -10,7 +10,7 @@ export function ArtifactPreview({ payTo }: { payTo: string }) {
     tool: "oracle_ask",
     priceUsd: 0.1,
     network: "eip155:8453",
-    payTo: payTo || "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    payTo: payTo || "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
     mode: "live",
     settlementId: "0x8f2a1b9c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
     transaction: "0x8f2a1b9c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",

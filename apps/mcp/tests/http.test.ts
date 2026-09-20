@@ -4,7 +4,7 @@ import { loadEnv } from "@x402orcle/oracle-brain";
 import { createOracleApp } from "../src/app.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+  X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
   X402_NETWORK: "eip155:8453",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
@@ -32,6 +32,31 @@ describe("oracle http", () => {
     expect(res.body.resource.url).toContain("/api/consult/oracle_ask");
   });
 
+  it("validates POST before payment and returns typed 400/404 errors", async () => {
+    const invalid = await request(app)
+      .post("/api/consult/oracle_ask")
+      .send({ audience: "agent" });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.code).toBe("INVALID_REQUEST");
+    expect(invalid.body.issues[0].path).toBe("question");
+
+    const missing = await request(app)
+      .post("/api/consult/not_a_tool")
+      .send({ question: "ignored" });
+    expect(missing.status).toBe(404);
+    expect(missing.body.code).toBe("TOOL_NOT_FOUND");
+  });
+
+  it("keeps GET crawler-only even when payment is supplied", async () => {
+    const mint = await request(app).post("/v1/demo/mint-payment").send({ tool: "oracle_ask" });
+    const challenge = await request(app)
+      .get("/api/consult/oracle_ask")
+      .set("PAYMENT-SIGNATURE", mint.body.payment_signature_header);
+    expect(challenge.status).toBe(402);
+    expect(challenge.body.error).toBe("PAYMENT_REQUIRED");
+    expect(challenge.headers["payment-response"]).toBeUndefined();
+  });
+
   it("demo payment returns wisdom envelope + receipt", async () => {
     const mint = await request(app).post("/v1/demo/mint-payment").send({ tool: "oracle_ask" });
     expect(mint.status).toBe(200);
@@ -43,12 +68,18 @@ describe("oracle http", () => {
     expect(paid.body.verdict).toBeTruthy();
     expect(paid.body.implementation_prompt).toMatch(/SYSTEM:/);
     expect(paid.body.receipt.mode).toBe("demo");
+    const paymentResponse = JSON.parse(
+      Buffer.from(paid.headers["payment-response"], "base64").toString("utf8"),
+    ) as { success?: boolean; network?: string };
+    expect(paymentResponse).toEqual(
+      expect.objectContaining({ success: true, network: env.network }),
+    );
   });
 
   it("llms.txt and agent-card are crawlable", async () => {
     const llms = await request(app).get("/llms.txt");
     expect(llms.status).toBe(200);
-    expect(llms.text).toContain("0xAB745e5F576667037696e78ba7dA28E193E4423D");
+    expect(llms.text).toContain("0x05e1720bB82F86B5bc7940a99FDC702E32256357");
     const card = await request(app).get("/.well-known/agent-card.json");
     expect(card.body.payments.rails[0].id).toBe("x402");
     const x402 = await request(app).get("/.well-known/x402");
@@ -79,7 +110,7 @@ describe("oracle http", () => {
 
   it("https public host refuses demo mint", async () => {
     const liveEnv = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       X402_NETWORK: "eip155:8453",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
@@ -100,5 +131,29 @@ describe("oracle http", () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain("API Documentation");
     expect(res.text).toContain("scalar");
+  });
+
+  it("exposes mcp-parity ops surfaces", async () => {
+    const challenge = await request(app).get("/api/consult/oracle_ask");
+    expect(challenge.status).toBe(402);
+    const mint = await request(app).post("/v1/demo/mint-payment").send({ tool: "oracle_ask" });
+    await request(app)
+      .post("/api/consult/oracle_ask")
+      .set("PAYMENT-SIGNATURE", mint.body.payment_signature_header)
+      .send({ question: "ledger parity?" });
+    const ledger = await request(app).get("/ledger/revenue");
+    expect(ledger.status).toBe(200);
+    expect(Array.isArray(ledger.body)).toBe(true);
+    expect(ledger.body.length).toBeGreaterThanOrEqual(1);
+    const swarm = await request(app).get("/swarm/revenue");
+    expect(swarm.status).toBe(200);
+    expect(swarm.body.settled_sales).toBeGreaterThanOrEqual(1);
+    const demand = await request(app).get("/demand");
+    expect(demand.status).toBe(200);
+    expect(demand.body.resources.length).toBeGreaterThanOrEqual(1);
+    const wallet = await request(app).get("/wallet");
+    expect(wallet.status).toBe(200);
+    expect(wallet.body.receive_address).toBe(env.payTo);
+    expect(wallet.body.pay_to_retired_warning).toBe(false);
   });
 });

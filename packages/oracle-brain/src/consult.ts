@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { envelope, type WisdomEnvelope } from "./envelope.js";
 import { getTool, type OracleToolSpec } from "./catalog.js";
 import { ORACLE_CONNECT_HOWTO, ORACLE_SYSTEM_PROMPT } from "./persona.js";
@@ -12,6 +13,22 @@ const CITATIONS = {
   next: "https://www.npmjs.com/package/@x402/next",
   validate: "https://docs.cdp.coinbase.com/api-reference/v2/rest-api/x402-facilitator/validate-x402-endpoint",
 };
+
+const LlmResponseSchema = z.object({
+  choices: z.array(
+    z.object({
+      message: z.object({ content: z.string().optional() }).optional(),
+    }),
+  ).optional(),
+});
+
+const LlmConsultSchema = z.object({
+  verdict: z.string().optional(),
+  wisdom: z.string().optional(),
+  implementation_prompt: z.string().optional(),
+  risk: z.string().optional(),
+  citations: z.array(z.string()).optional(),
+});
 
 function implPrompt(body: string): string {
   return [
@@ -169,6 +186,7 @@ export async function maybeLlmConsult(opts: {
   try {
     const res = await fetch(`${opts.env.llmBaseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
+      signal: AbortSignal.timeout(opts.env.llmTimeoutMs),
       headers: {
         authorization: `Bearer ${opts.env.llmApiKey}`,
         "content-type": "application/json",
@@ -186,20 +204,14 @@ export async function maybeLlmConsult(opts: {
       }),
     });
     if (!res.ok) return fallback;
-    const data = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
+    const data = LlmResponseSchema.parse(await res.json());
     const content = data.choices?.[0]?.message?.content ?? "";
     const jsonStart = content.indexOf("{");
     const jsonEnd = content.lastIndexOf("}");
     if (jsonStart < 0 || jsonEnd < 0) return fallback;
-    const parsed = JSON.parse(content.slice(jsonStart, jsonEnd + 1)) as {
-      verdict?: string;
-      wisdom?: string;
-      implementation_prompt?: string;
-      risk?: string;
-      citations?: string[];
-    };
+    const parsed = LlmConsultSchema.parse(
+      JSON.parse(content.slice(jsonStart, jsonEnd + 1)),
+    );
     return envelope({
       verdict: parsed.verdict || fallback.verdict,
       wisdom: parsed.wisdom || fallback.wisdom,

@@ -9,7 +9,7 @@
     "tagline": "402 is the answer. The Oracle is how you ask.",
     "network": "eip155:8453",
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "payTo": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    "payTo": "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
     "canonicalUrl": "https://x402orcle.vercel.app"
   },
   "validationEndpoints": [

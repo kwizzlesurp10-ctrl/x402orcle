@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TOOLS, jsonSchemaFromExample, type OracleToolSpec } from "@x402orcle/oracle-brain/catalog";
+import { TOOLS, type OracleToolSpec } from "@x402orcle/oracle-brain/catalog";
 import { CopyButton } from "./CopyButton";
 
 export function CapabilityCards({ payTo }: { payTo: string }) {
@@ -63,8 +63,8 @@ function ToolCard({
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  const inputSchema = jsonSchemaFromExample(tool.inputExample);
-  const outputSchema = jsonSchemaFromExample(tool.outputExample);
+  const inputSchema = tool.inputSchema;
+  const outputSchema = tool.outputSchema;
 
   return (
     <div className={`capability-card ${tool.tier === "paid" ? "card-paid" : "card-free"}`}>

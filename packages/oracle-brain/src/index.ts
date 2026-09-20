@@ -1,4 +1,21 @@
 export { loadEnv, usdToAtomic, usdcForNetwork, BASE_USDC, type OracleEnv } from "./env.js";
+export { DEFAULT_PAY_TO, RETIRED_PAY_TO_PREFIXES, isRetiredPayTo } from "./payto.js";
+export {
+  recordRevenue,
+  readRevenue,
+  revenueSummary,
+  parseOperatorWallets,
+  classifyOperatorSettle,
+  _resetLedgerMemoryForTests,
+  type RevenueRow,
+} from "./ledger.js";
+export {
+  recordChallenge,
+  recordDemandSale,
+  demandSnapshot,
+  _resetDemandMemoryForTests,
+  type DemandResource,
+} from "./demand.js";
 export {
   TOOLS,
   FREE_TOOLS,
@@ -6,7 +23,8 @@ export {
   SERVICE,
   getTool,
   clampPrice,
-  jsonSchemaFromExample,
+  validateToolInput,
+  type JsonSchema,
   type OracleToolSpec,
 } from "./catalog.js";
 export { gatePaidTool, refuseKeyRequestMessage } from "./policy.js";
@@ -35,7 +53,12 @@ export {
   jsonLd,
 } from "./discovery.js";
 export { buildDemoPaymentPayload, demoVerify, demoPayerFromPayload } from "./demo-payment.js";
-export { handleConsult, facilitatorVerifyThenSettle, type ConsultResult } from "./http.js";
+export {
+  handleConsult,
+  facilitatorVerifyThenSettle,
+  type ConsultError,
+  type ConsultResult,
+} from "./http.js";
 export { generateCdpJwt, cdpAuthHeaders } from "./cdp-jwt.js";
 export { validatePaymentEnvelope, type SigValidationResult } from "./validator.js";
 export { landingHtml, landingConsultCopy, LANDING_ASK_BODY } from "./landing.js";

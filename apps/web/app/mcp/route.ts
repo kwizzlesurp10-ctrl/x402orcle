@@ -5,7 +5,6 @@ import {
   TOOLS,
   PAID_TOOLS,
   ORACLE_CONNECT_HOWTO,
-  jsonSchemaFromExample,
   mcpJson,
   decodePaymentHeader,
 } from "@x402orcle/oracle-brain";
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
           tools: TOOLS.map((t) => ({
             name: t.name,
             description: t.description,
-            inputSchema: jsonSchemaFromExample(t.inputExample),
+            inputSchema: t.inputSchema,
           })),
         },
       },
@@ -160,6 +159,25 @@ export async function POST(req: NextRequest) {
         },
       );
     }
+    if (result.status !== 200) {
+      return NextResponse.json(
+        {
+          jsonrpc: "2.0",
+          id,
+          result: {
+            isError: true,
+            structuredContent: result.body,
+            content: [{ type: "text", text: JSON.stringify(result.body) }],
+          },
+        },
+        {
+          headers: {
+            "access-control-allow-origin": "*",
+            ...(result.headers ?? {}),
+          },
+        },
+      );
+    }
     return NextResponse.json(
       {
         jsonrpc: "2.0",
@@ -170,7 +188,10 @@ export async function POST(req: NextRequest) {
         },
       },
       {
-        headers: { "access-control-allow-origin": "*" },
+        headers: {
+          "access-control-allow-origin": "*",
+          ...(result.headers ?? {}),
+        },
       },
     );
   }

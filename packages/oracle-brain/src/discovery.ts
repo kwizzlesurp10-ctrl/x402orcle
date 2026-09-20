@@ -1,4 +1,4 @@
-import { FREE_TOOLS, PAID_TOOLS, SERVICE, TOOLS, clampPrice, jsonSchemaFromExample } from "./catalog.js";
+import { FREE_TOOLS, PAID_TOOLS, SERVICE, TOOLS, clampPrice } from "./catalog.js";
 import { BASE_USDC, usdToAtomic, usdcForNetwork, type OracleEnv } from "./env.js";
 import { ORACLE_CONNECT_HOWTO } from "./persona.js";
 import { paidCatalogRequired } from "./challenge.js";
@@ -27,6 +27,7 @@ export function funding(env: OracleEnv) {
       llmsFullTxt: `${env.publicBaseUrl}/llms-full.txt`,
       agentsTxt: `${env.publicBaseUrl}/agents.txt`,
       openapi: `${env.publicBaseUrl}/openapi.json`,
+      ...(env.swarmPublicUrl ? { swarm: env.swarmPublicUrl } : {}),
     },
     legal:
       "Payment for delivered consult artifacts or a voluntary tip. Not a token, not equity, not a raise.",
@@ -58,6 +59,7 @@ export function wellKnownX402(env: OracleEnv) {
       llms_txt: `${env.publicBaseUrl}/llms.txt`,
       llms_full_txt: `${env.publicBaseUrl}/llms-full.txt`,
       agents_txt: `${env.publicBaseUrl}/agents.txt`,
+      ...(env.swarmPublicUrl ? { swarm: env.swarmPublicUrl } : {}),
     },
     mcp: {
       manifest: `${env.publicBaseUrl}/.well-known/mcp.json`,
@@ -78,8 +80,8 @@ export function wellKnownX402(env: OracleEnv) {
       name: t.serviceName,
       what: t.description,
       tags: t.tags,
-      inputSchema: jsonSchemaFromExample(t.inputExample),
-      outputSchema: jsonSchemaFromExample(t.outputExample),
+      inputSchema: t.inputSchema,
+      outputSchema: t.outputSchema,
       params: t.inputExample,
     })),
     legal: funding(env).legal,
@@ -102,7 +104,7 @@ export function mcpJson(env: OracleEnv) {
       description: t.description,
       paid: t.tier === "paid",
       priceUsd: t.tier === "paid" ? clampPrice(t, undefined, env.maxPriceUsd) : 0,
-      inputSchema: jsonSchemaFromExample(t.inputExample),
+      inputSchema: t.inputSchema,
     })),
   };
 }
@@ -117,6 +119,7 @@ export function agentCard(env: OracleEnv) {
     description: SERVICE.thesis,
     url: env.publicBaseUrl,
     documentationUrl: `${env.publicBaseUrl}/llms.txt`,
+    ...(env.swarmPublicUrl ? { swarmUrl: env.swarmPublicUrl } : {}),
     provider: {
       organization: "Local AI Integrations",
       url: env.publicBaseUrl,
@@ -126,6 +129,7 @@ export function agentCard(env: OracleEnv) {
         type: "http",
         url: `${env.publicBaseUrl}/api/consult`,
         methods: ["GET", "POST"],
+        semantics: "GET returns a crawler-safe payment challenge; POST executes after validation and settlement.",
       },
       {
         type: "mcp-streamable-http",
@@ -193,8 +197,8 @@ export function agentCard(env: OracleEnv) {
         network: env.network,
         payTo: env.payTo,
       },
-      inputSchema: jsonSchemaFromExample(t.inputExample),
-      outputSchema: jsonSchemaFromExample(t.outputExample),
+      inputSchema: t.inputSchema,
+      outputSchema: t.outputSchema,
       examples: [
         {
           input: t.inputExample,
@@ -225,6 +229,7 @@ export function agentsJson(env: OracleEnv) {
         name: SERVICE.name,
         url: env.publicBaseUrl,
         mcp: `${env.publicBaseUrl}/mcp`,
+        ...(env.swarmPublicUrl ? { swarm: env.swarmPublicUrl } : {}),
       },
     ],
     settlement_address: env.payTo,
@@ -251,6 +256,9 @@ export function llmsTxt(env: OracleEnv): string {
     `- [OpenAPI 3.1 Spec](${env.publicBaseUrl}/openapi.json): Complete REST OpenAPI 3.1 schema with x-payment-info extensions`,
     `- [LLMs Full Documentation](${env.publicBaseUrl}/llms-full.txt): Comprehensive schemas, envelope formats, and TypeScript types`,
     `- [Agents Permissions](${env.publicBaseUrl}/agents.txt): Agent bot crawling permissions and service endpoints`,
+    ...(env.swarmPublicUrl
+      ? [`- [Crediting Swarm](${env.swarmPublicUrl}): External swarm discovery and credit recommendation service`]
+      : []),
     "",
     "## Free Tools (No Payment Required)",
     ...FREE_TOOLS.map((t) => `- [${t.serviceName}](${env.publicBaseUrl}${t.httpPath}): ${t.description}`),
@@ -290,6 +298,7 @@ export function llmsFullTxt(env: OracleEnv): string {
     `- LLMs Minimal: ${env.publicBaseUrl}/llms.txt`,
     `- Agents: ${env.publicBaseUrl}/agents.txt`,
     `- MCP RPC Endpoint: ${env.publicBaseUrl}/mcp`,
+    ...(env.swarmPublicUrl ? [`- Crediting Swarm: ${env.swarmPublicUrl}`] : []),
     "",
     "## Payment Parameters",
     `- Facilitator: ${env.facilitatorUrl}`,
@@ -307,6 +316,8 @@ export function llmsFullTxt(env: OracleEnv): string {
       `- Price: ${t.tier === "free" ? "Free" : `$${clampPrice(t, undefined, env.maxPriceUsd)} USDC`}`,
       `- HTTP: ${t.httpMethod} ${t.httpPath}`,
       `- Description: ${t.description}`,
+      `- Input Schema: \`${JSON.stringify(t.inputSchema)}\``,
+      `- Output Schema: \`${JSON.stringify(t.outputSchema)}\``,
       `- Input Example: \`${JSON.stringify(t.inputExample)}\``,
       `- Output Example: \`${JSON.stringify(t.outputExample)}\``,
       ""
@@ -354,6 +365,7 @@ export function agentsTxt(env: OracleEnv): string {
     `OpenAPI: ${env.publicBaseUrl}/openapi.json`,
     `LLMS-Txt: ${env.publicBaseUrl}/llms.txt`,
     `LLMS-Full: ${env.publicBaseUrl}/llms-full.txt`,
+    ...(env.swarmPublicUrl ? [`Swarm: ${env.swarmPublicUrl}`] : []),
     "",
     `# Settlement & Payment Details`,
     `Payment-Protocol: x402`,
@@ -366,6 +378,13 @@ export function agentsTxt(env: OracleEnv): string {
 }
 
 export function openApi(env: OracleEnv) {
+  const requestSchemaNames: Record<string, string> = {
+    oracle_ask: "OracleAskRequest",
+    oracle_diagnose_402: "OracleDiagnose402Request",
+    oracle_review_mcp: "OracleReviewMcpRequest",
+    oracle_bazaar_rewrite: "OracleBazaarRewriteRequest",
+    complete_oracle_task: "CompleteOracleTaskRequest",
+  };
   const paths: Record<string, unknown> = {};
   for (const t of TOOLS) {
     const paid = t.tier === "paid";
@@ -386,6 +405,12 @@ export function openApi(env: OracleEnv) {
       : undefined;
     const op: Record<string, unknown> = {
       summary: t.description,
+      ...(t.name === "complete_oracle_task"
+        ? {
+            description:
+              "Executes one concrete x402 delivery goal after the JSON body validates and x402 payment settles. The response is a WisdomEnvelope containing verdict, guidance, an implementation prompt for typed diffs, risk and revenue/settlement guidance, citations, and the settlement receipt. Payment credentials belong only in PAYMENT-SIGNATURE.",
+          }
+        : {}),
       operationId: t.name,
       tags: t.tags,
       ...(paid ? { "x-payment-info": paymentInfo, security: [{ x402Payment: [] }] } : {}),
@@ -397,14 +422,50 @@ export function openApi(env: OracleEnv) {
                 headers: {
                   "PAYMENT-REQUIRED": { schema: { type: "string", format: "byte" } },
                 },
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/PaymentRequired" },
+                  },
+                },
               },
             }
           : {}),
-        "200": {
-          description: "OK",
+        "400": {
+          description: "Request validation failed before payment verification or settlement",
           content: {
             "application/json": {
-              schema: { type: "object" },
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "404": {
+          description: "Paid tool not found",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+        "200": {
+          description: "OK",
+          ...(paid
+            ? {
+                headers: {
+                  "PAYMENT-RESPONSE": {
+                    description: "Base64-encoded x402 settlement result.",
+                    schema: {
+                      type: "string",
+                      contentEncoding: "base64",
+                      contentMediaType: "application/json",
+                      contentSchema: { $ref: "#/components/schemas/PaymentResponse" },
+                    },
+                  },
+                },
+              }
+            : {}),
+          content: {
+            "application/json": {
+              schema: t.outputSchema,
               example: t.outputExample,
             },
           },
@@ -416,7 +477,7 @@ export function openApi(env: OracleEnv) {
         required: paid,
         content: {
           "application/json": {
-            schema: jsonSchemaFromExample(t.inputExample),
+            schema: { $ref: `#/components/schemas/${requestSchemaNames[t.name]}` },
             example: t.inputExample,
           },
         },
@@ -426,12 +487,14 @@ export function openApi(env: OracleEnv) {
     if (paid && t.httpMethod === "POST") {
       const existing = (paths[t.httpPath] as Record<string, unknown>) || {};
       existing.get = {
-        summary: `Crawler 402 for ${t.name}`,
+        summary: `Fetch the crawler-safe payment challenge for ${t.name}`,
+        description:
+          "Discovery-only route. It never validates payment, settles funds, invokes the LLM, or executes the tool. Submit JSON to POST to execute.",
         operationId: `${t.name}_crawler_402`,
         "x-payment-info": paymentInfo,
         responses: {
           "402": (op.responses as Record<string, unknown>)["402"],
-          "200": { description: "Paid GET not used; POST after payment" },
+          "404": (op.responses as Record<string, unknown>)["404"],
         },
       };
       paths[t.httpPath] = existing;
@@ -446,6 +509,7 @@ export function openApi(env: OracleEnv) {
       title: SERVICE.name,
       version: SERVICE.version,
       description: SERVICE.thesis,
+      ...(env.swarmPublicUrl ? { "x-swarm-url": env.swarmPublicUrl } : {}),
       "x-guidance":
         "Free GET /api/health and /api/pricing. Paid consults: POST /api/consult/oracle_ask with JSON {question}. Unpaid probes return HTTP 402 and PAYMENT-REQUIRED (x402 v2, Base USDC). After payment, retry with PAYMENT-SIGNATURE. MCP streamable HTTP at /mcp. No private keys.",
     },
@@ -468,6 +532,132 @@ export function openApi(env: OracleEnv) {
           name: "PAYMENT-SIGNATURE",
           in: "header",
           description: "x402 v2 payment signature containing EIP-712 payment authorization payload.",
+        },
+      },
+      schemas: {
+        OracleAskRequest: PAID_TOOLS.find((tool) => tool.name === "oracle_ask")!.inputSchema,
+        OracleDiagnose402Request: PAID_TOOLS.find((tool) => tool.name === "oracle_diagnose_402")!.inputSchema,
+        OracleReviewMcpRequest: PAID_TOOLS.find((tool) => tool.name === "oracle_review_mcp")!.inputSchema,
+        OracleBazaarRewriteRequest: PAID_TOOLS.find((tool) => tool.name === "oracle_bazaar_rewrite")!.inputSchema,
+        CompleteOracleTaskRequest: PAID_TOOLS.find((tool) => tool.name === "complete_oracle_task")!.inputSchema,
+        ErrorResponse: {
+          type: "object",
+          additionalProperties: false,
+          required: ["code", "message"],
+          properties: {
+            code: {
+              type: "string",
+              enum: ["INVALID_REQUEST", "TOOL_NOT_FOUND", "MAX_PRICE", "KEY_MATERIAL"],
+            },
+            message: { type: "string" },
+            issues: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["path", "message"],
+                properties: {
+                  path: { type: "string" },
+                  message: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        PaymentAccept: {
+          type: "object",
+          required: ["scheme", "network", "amount", "asset", "payTo", "maxTimeoutSeconds", "extra"],
+          properties: {
+            scheme: { type: "string", const: "exact" },
+            network: { type: "string" },
+            amount: { type: "string", pattern: "^[0-9]+$" },
+            asset: { type: "string" },
+            payTo: { type: "string" },
+            maxTimeoutSeconds: { type: "integer", minimum: 1 },
+            extra: {
+              type: "object",
+              required: ["name", "version"],
+              properties: {
+                name: { type: "string", const: "USD Coin" },
+                version: { type: "string", const: "2" },
+              },
+            },
+          },
+        },
+        PaymentRequired: {
+          type: "object",
+          required: ["x402Version", "error", "accepts", "resource", "extensions"],
+          properties: {
+            x402Version: { type: "integer", const: 2 },
+            error: { type: "string", const: "PAYMENT_REQUIRED" },
+            accepts: {
+              type: "array",
+              minItems: 1,
+              items: { $ref: "#/components/schemas/PaymentAccept" },
+            },
+            resource: { type: "object" },
+            extensions: { type: "object" },
+          },
+        },
+        PaymentResponse: {
+          type: "object",
+          additionalProperties: false,
+          required: ["success", "network"],
+          properties: {
+            success: { type: "boolean", const: true },
+            transaction: { type: "string" },
+            network: { type: "string" },
+            payer: { type: "string" },
+          },
+        },
+        SettlementReceipt: {
+          type: "object",
+          required: ["tool", "priceUsd", "network", "payTo", "mode", "paidAt"],
+          properties: {
+            tool: { type: "string" },
+            priceUsd: { type: "number" },
+            network: { type: "string" },
+            payTo: { type: "string" },
+            mode: { type: "string", enum: ["demo", "live"] },
+            settlementId: { type: "string" },
+            transaction: { type: "string" },
+            payer: { type: "string" },
+            paidAt: { type: "string", format: "date-time" },
+          },
+        },
+        WisdomEnvelope: {
+          type: "object",
+          required: ["verdict", "wisdom", "implementation_prompt", "risk", "citations", "receipt", "human", "agent"],
+          properties: {
+            verdict: { type: "string" },
+            wisdom: { type: "string" },
+            implementation_prompt: { type: "string" },
+            risk: { type: "string" },
+            citations: { type: "array", items: { type: "string", format: "uri" } },
+            receipt: { $ref: "#/components/schemas/SettlementReceipt" },
+            human: { type: "string" },
+            agent: { type: "object" },
+          },
+        },
+        HealthResponse: {
+          type: "object",
+          required: ["ok", "service", "network"],
+          properties: {
+            ok: { type: "boolean" },
+            service: { type: "string" },
+            network: { type: "string" },
+          },
+        },
+        PricingResponse: {
+          type: "object",
+          required: ["maxPriceUsd", "network", "payTo", "free", "paid"],
+          properties: {
+            maxPriceUsd: { type: "number" },
+            network: { type: "string" },
+            payTo: { type: "string" },
+            free: { type: "array", items: { type: "object" } },
+            paid: { type: "array", items: { type: "object" } },
+          },
         },
       },
     },

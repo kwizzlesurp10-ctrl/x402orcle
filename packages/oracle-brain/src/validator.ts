@@ -23,7 +23,7 @@ export type SigValidationResult = {
 
 export function validatePaymentEnvelope(
   input: string | Record<string, unknown>,
-  expectedPayTo: string = "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+  expectedPayTo: string = "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
   expectedNetwork: string = "eip155:8453"
 ): SigValidationResult {
   const checks: SigValidationResult["checks"] = [];

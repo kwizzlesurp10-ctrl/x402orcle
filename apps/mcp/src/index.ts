@@ -34,7 +34,7 @@ const env = loadEnv({
   X402_PAY_TO:
     process.env.X402_PAY_TO ||
     process.env.X402_PAY_TO_ADDRESS ||
-    "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
   DEMO_MODE: process.env.DEMO_MODE ?? "true",
 });
 
