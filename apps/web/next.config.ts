@@ -27,11 +27,19 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.extensionAlias = {
       ...(config.resolve.extensionAlias || {}),
       ".js": [".ts", ".tsx", ".js"],
     };
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...(config.resolve.fallback || {}),
+        crypto: false,
+        "node:crypto": false,
+        fs: false,
+      };
+    }
     return config;
   },
 };

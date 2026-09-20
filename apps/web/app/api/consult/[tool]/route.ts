@@ -4,29 +4,52 @@ import { oracleEnv } from "../../../../lib/env";
 
 export const dynamic = "force-dynamic";
 
-async function consult(req: NextRequest, tool: string) {
+async function consult(req: NextRequest, tool: string, execution: "challenge" | "execute") {
   const env = oracleEnv();
   const paymentHeader =
-    req.headers.get("payment-signature") || req.headers.get("PAYMENT-SIGNATURE") || "";
+    req.headers.get("payment-signature") ||
+    req.headers.get("PAYMENT-SIGNATURE") ||
+    req.headers.get("Payment-Signature") ||
+    req.headers.get("payment") ||
+    req.headers.get("Payment") ||
+    req.headers.get("x-payment") ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
+    "";
   let input: Record<string, unknown> = {};
-  if (req.method === "POST") {
+  if (execution === "execute") {
     try {
-      input = (await req.json()) as Record<string, unknown>;
+      const body: unknown = await req.json();
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return NextResponse.json(
+          { code: "INVALID_REQUEST", message: "Request body must be a JSON object" },
+          { status: 400 },
+        );
+      }
+      input = body as Record<string, unknown>;
     } catch {
-      input = {};
+      return NextResponse.json(
+        { code: "INVALID_REQUEST", message: "Request body must be valid JSON" },
+        { status: 400 },
+      );
     }
-  } else {
-    input = Object.fromEntries(req.nextUrl.searchParams.entries());
   }
   const payment = paymentHeader ? decodePaymentHeader(paymentHeader) : (input.payment as unknown) ?? null;
+  delete input.payment;
   const result = await handleConsult({
     env,
     toolName: tool,
     input,
     payment,
     transport: "http",
+    execution,
   });
-  return NextResponse.json(result.body, { status: result.status, headers: result.headers });
+  const headers = new Headers(result.headers || {});
+  headers.set("Access-Control-Allow-Origin", "*");
+  headers.set(
+    "Access-Control-Expose-Headers",
+    "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, WWW-Authenticate, x402-version",
+  );
+  return NextResponse.json(result.body, { status: result.status, headers });
 }
 
 export async function GET(
@@ -34,7 +57,7 @@ export async function GET(
   ctx: { params: Promise<{ tool: string }> },
 ) {
   const { tool } = await ctx.params;
-  return consult(req, tool);
+  return consult(req, tool, "challenge");
 }
 
 export async function POST(
@@ -42,7 +65,7 @@ export async function POST(
   ctx: { params: Promise<{ tool: string }> },
 ) {
   const { tool } = await ctx.params;
-  return consult(req, tool);
+  return consult(req, tool, "execute");
 }
 
 export async function OPTIONS() {

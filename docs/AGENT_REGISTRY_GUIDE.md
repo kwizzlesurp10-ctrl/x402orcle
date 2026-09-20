@@ -13,7 +13,7 @@ x402 Oracle is a production-grade, decentralized wisdom market delivering autono
 - **Monorepo Repository:** `https://github.com/kwizzlesurp10-ctrl/x402orcle`
 - **Settlement Network:** Base Mainnet (`eip155:8453`)
 - **Settlement Asset:** Base USDC (`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`)
-- **PayTo Settlement Address:** `0xAB745e5F576667037696e78ba7dA28E193E4423D`
+- **PayTo Settlement Address:** `0x05e1720bB82F86B5bc7940a99FDC702E32256357`
 - **CDP Facilitator Endpoint:** `https://api.cdp.coinbase.com/platform/v2/x402`
 - **CDP Validator Endpoint:** `https://api.cdp.coinbase.com/platform/v2/x402/validate`
 

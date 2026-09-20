@@ -7,6 +7,9 @@ dist
 .env
 .env.local
 .env.*.local
+deployment/kubuntu/.env.production
+deployment/kubuntu/cloudflared/config.yml
+deployment/kubuntu/cloudflared/credentials.json
 data/
 coverage
 playwright-report

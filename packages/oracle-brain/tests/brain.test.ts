@@ -19,10 +19,11 @@ import {
   landingHtml,
   generateCdpJwt,
   cdpAuthHeaders,
+  validateToolInput,
 } from "../src/index.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+  X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
   X402_NETWORK: "eip155:8453",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
@@ -41,7 +42,7 @@ describe("env", () => {
 
   it("accepts address and flags seller leak", () => {
     const e = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       EVM_PRIVATE_KEY: "0x" + "11".repeat(32),
       DEMO_MODE: "true",
     });
@@ -51,18 +52,40 @@ describe("env", () => {
 
   it("refuses demo mode on https unless DEMO_ALLOW_PUBLIC", () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
     });
     expect(live.demoMode).toBe(false);
     const allowed = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       DEMO_MODE: "true",
       DEMO_ALLOW_PUBLIC: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
     });
     expect(allowed.demoMode).toBe(true);
+  });
+
+  it("bounds external fetch timeout configuration", () => {
+    expect(() =>
+      loadEnv({
+        X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
+        FACILITATOR_TIMEOUT_MS: "30100",
+      }),
+    ).toThrow();
+    expect(env.facilitatorTimeoutMs).toBe(10_000);
+    expect(env.llmTimeoutMs).toBe(30_000);
+  });
+});
+
+describe("tool input schemas", () => {
+  it("uses strict explicit per-tool Zod schemas", () => {
+    const ask = requireTool("oracle_ask");
+    expect(validateToolInput(ask, { question: "How should this settle?", audience: "agent" }).success).toBe(true);
+    expect(validateToolInput(ask, { audience: "agent" }).success).toBe(false);
+    expect(validateToolInput(ask, { question: "valid", unexpected: true }).success).toBe(false);
+    expect(ask.inputSchema.required).toEqual(["question"]);
+    expect(ask.inputSchema.additionalProperties).toBe(false);
   });
 });
 
@@ -141,6 +164,35 @@ describe("discovery surfaces", () => {
     expect(spec.paths["/api/consult/oracle_ask"]?.get).toBeTruthy();
   });
 
+  it("publishes reusable OpenAPI schemas and configurable swarm discovery", () => {
+    const withSwarm = loadEnv({
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
+      PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
+      SWARM_PUBLIC_URL: "https://swarm.example/",
+    });
+    const spec = openApi(withSwarm) as {
+      info: { "x-swarm-url"?: string };
+      components: { schemas: Record<string, unknown> };
+      paths: Record<string, { post?: { description?: string; requestBody?: unknown } }>;
+    };
+    expect(spec.info["x-swarm-url"]).toBe("https://swarm.example");
+    expect(spec.components.schemas).toEqual(
+      expect.objectContaining({
+        CompleteOracleTaskRequest: expect.any(Object),
+        WisdomEnvelope: expect.any(Object),
+        PaymentRequired: expect.any(Object),
+        PaymentResponse: expect.any(Object),
+        ErrorResponse: expect.any(Object),
+      }),
+    );
+    expect(spec.paths["/api/consult/complete_oracle_task"]?.post?.description).toContain(
+      "typed diffs",
+    );
+    expect(wellKnownX402(withSwarm).discovery.swarm).toBe("https://swarm.example");
+    expect(agentCard(withSwarm).swarmUrl).toBe("https://swarm.example");
+    expect(llmsTxt(withSwarm)).toContain("https://swarm.example");
+  });
+
   it("well-known x402 lists every paid tool", () => {
     const x = wellKnownX402(env);
     expect(x.payTo).toBe(env.payTo);
@@ -164,6 +216,7 @@ describe("discovery surfaces", () => {
     expect(full).toContain("Full Technical Reference");
     expect(full).toContain("Wisdom Envelope Format");
     expect(full).toContain("oracle_ask");
+    expect(full).toContain('"required":["goal"]');
   });
 });
 
@@ -176,7 +229,7 @@ describe("landing consult copy", () => {
 
   it("https public host never advertises demo mint", () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
     });
@@ -226,7 +279,7 @@ describe("cdp jwt", () => {
 describe("live facilitator consult", () => {
   it("401 verify surfaces FACILITATOR_AUTH_REQUIRED without serving wisdom", async () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
     });
@@ -250,7 +303,7 @@ describe("live facilitator consult", () => {
   it("sends CDP Bearer JWT on verify and settle when keys are set", async () => {
     const apiKeySecret = Buffer.concat([Buffer.alloc(32, 1), Buffer.alloc(32, 2)]).toString("base64");
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
       CDP_API_KEY_ID: "00000000-0000-0000-0000-000000000001",
@@ -281,13 +334,14 @@ describe("live facilitator consult", () => {
       fetchImpl,
     });
     expect(res.status).toBe(200);
+    expect(res.headers?.["PAYMENT-RESPONSE"]).toBeTruthy();
     expect(auths.some((a) => a.includes("/verify") && a.endsWith("bearer"))).toBe(true);
     expect(auths.some((a) => a.includes("/settle") && a.endsWith("bearer"))).toBe(true);
   });
 
   it("401 on CDP then fallback facilitator settles", async () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
       X402_FACILITATOR_URL: "https://api.cdp.coinbase.com/platform/v2/x402",
@@ -326,12 +380,14 @@ describe("live facilitator consult", () => {
 
   it("successful verify+settle returns live receipt", async () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x05e1720bB82F86B5bc7940a99FDC702E32256357",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
     });
     const { handleConsult } = await import("../src/index.js");
-    const fetchImpl = (async (url: string | URL) => {
+    const signals: Array<AbortSignal | null | undefined> = [];
+    const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
+      signals.push(init?.signal);
       const u = String(url);
       if (u.endsWith("/verify")) {
         return new Response(JSON.stringify({ isValid: true, payer: "0xabc" }), {
@@ -356,5 +412,52 @@ describe("live facilitator consult", () => {
     const body = res.body as { receipt?: { mode?: string; transaction?: string } };
     expect(body.receipt?.mode).toBe("live");
     expect(body.receipt?.transaction).toBe("0xdead");
+    expect(res.headers?.["PAYMENT-RESPONSE"]).toBeTruthy();
+    expect(signals).toHaveLength(2);
+    expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(true);
   });
 });
+
+describe("validator", () => {
+  it("validates a valid v2 payment envelope", async () => {
+    const { validatePaymentEnvelope, buildDemoPaymentPayload, buildPaymentRequired, requireTool, clampPrice } = await import("../src/index.js");
+    const tool = requireTool("oracle_ask");
+    const pr = buildPaymentRequired({ env, tool, priceUsd: clampPrice(tool, undefined, 25) });
+    const payload = buildDemoPaymentPayload({
+      accepts: pr.accepts[0]!,
+      payer: "0x1111111111111111111111111111111111111111",
+      resourceUrl: pr.resource.url,
+    });
+    const result = validatePaymentEnvelope(payload, env.payTo, env.network);
+    expect(result.isValid).toBe(true);
+    expect(result.score).toBe(100);
+    expect(result.decoded.payer).toBe("0x1111111111111111111111111111111111111111");
+  });
+
+  it("detects payTo destination mismatch and expired timestamp", async () => {
+    const { validatePaymentEnvelope } = await import("../src/index.js");
+    const malformed = {
+      x402Version: 2,
+      accepted: { scheme: "exact", network: "eip155:8453", payTo: "0xWrongAddress" },
+      payload: {
+        signature: "0x1234567890abcdef1234567890",
+        authorization: {
+          from: "0x1111",
+          to: "0xWrongAddress",
+          value: "100000",
+          validAfter: "0",
+          validBefore: "1000", // Expired timestamp
+          nonce: "0x" + "00".repeat(32),
+        },
+      },
+    };
+    const result = validatePaymentEnvelope(malformed, "0x05e1720bB82F86B5bc7940a99FDC702E32256357", "eip155:8453");
+    expect(result.isValid).toBe(false);
+    expect(result.score).toBeLessThan(100);
+    const payToCheck = result.checks.find((c) => c.name.includes("payTo"));
+    expect(payToCheck?.passed).toBe(false);
+    const timeCheck = result.checks.find((c) => c.name.includes("Temporal"));
+    expect(timeCheck?.passed).toBe(false);
+  });
+});
+

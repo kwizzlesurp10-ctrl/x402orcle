@@ -1,5 +1,3 @@
-import { createPrivateKey, randomBytes, sign, type KeyObject } from "node:crypto";
-
 export type CdpAlg = "EdDSA" | "ES256";
 
 function b64url(data: Buffer | string): string {
@@ -7,18 +5,22 @@ function b64url(data: Buffer | string): string {
   return buf.toString("base64url");
 }
 
-export function parseCdpPrivateKey(apiKeySecret: string): { key: KeyObject; alg: CdpAlg } {
+export function parseCdpPrivateKey(apiKeySecret: string): { key: unknown; alg: CdpAlg } {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  const req = typeof eval !== "undefined" ? eval("require") : null;
+  const nodeCrypto = req ? req("node:crypto") : null;
+  if (!nodeCrypto) throw new Error("CDP JWT generation is server-only (node:crypto unavailable)");
   const secret = apiKeySecret.trim().replace(/^["']|["']$/g, "");
   const pem = secret.includes("BEGIN") && secret.includes("\\n") ? secret.replace(/\\n/g, "\n") : secret;
   if (pem.includes("BEGIN")) {
-    return { key: createPrivateKey(pem), alg: "ES256" };
+    return { key: nodeCrypto.createPrivateKey(pem), alg: "ES256" };
   }
   const raw = Buffer.from(secret, "base64");
   if (raw.length !== 64) {
     throw new Error(`CDP Ed25519 secret must decode to 64 bytes, got ${raw.length}`);
   }
   const pkcs8 = Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), raw.subarray(0, 32)]);
-  return { key: createPrivateKey({ key: pkcs8, format: "der", type: "pkcs8" }), alg: "EdDSA" };
+  return { key: nodeCrypto.createPrivateKey({ key: pkcs8, format: "der", type: "pkcs8" }), alg: "EdDSA" };
 }
 
 export function generateCdpJwt(opts: {
@@ -28,6 +30,10 @@ export function generateCdpJwt(opts: {
   url: string;
   expiresIn?: number;
 }): string {
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval
+  const req = typeof eval !== "undefined" ? eval("require") : null;
+  const nodeCrypto = req ? req("node:crypto") : null;
+  if (!nodeCrypto) throw new Error("CDP JWT generation is server-only (node:crypto unavailable)");
   const { key, alg } = parseCdpPrivateKey(opts.apiKeySecret);
   const target = new URL(opts.url);
   const path = `${target.pathname}${target.search}`;
@@ -36,7 +42,7 @@ export function generateCdpJwt(opts: {
     alg,
     typ: "JWT",
     kid: opts.apiKeyId,
-    nonce: randomBytes(16).toString("hex"),
+    nonce: nodeCrypto.randomBytes(16).toString("hex"),
   };
   const payload = {
     sub: opts.apiKeyId,
@@ -49,8 +55,8 @@ export function generateCdpJwt(opts: {
   const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
   const signature =
     alg === "EdDSA"
-      ? sign(null, Buffer.from(signingInput), key)
-      : sign("sha256", Buffer.from(signingInput), { key, dsaEncoding: "ieee-p1363" });
+      ? nodeCrypto.sign(null, Buffer.from(signingInput), key)
+      : nodeCrypto.sign("sha256", Buffer.from(signingInput), { key, dsaEncoding: "ieee-p1363" });
   return `${signingInput}.${b64url(signature)}`;
 }
 

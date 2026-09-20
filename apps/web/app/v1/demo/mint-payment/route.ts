@@ -3,7 +3,7 @@ import {
   buildDemoPaymentPayload,
   buildPaymentRequired,
   clampPrice,
-  requireTool,
+  getTool,
 } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../../../lib/env";
 
@@ -14,7 +14,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ code: "DEMO_DISABLED" }, { status: 403 });
   }
   const body = (await req.json().catch(() => ({}))) as { tool?: string; payer?: string };
-  const tool = requireTool(body.tool || "oracle_ask");
+  const toolName = body.tool || "oracle_ask";
+  const tool = getTool(toolName);
+  if (!tool || tool.tier !== "paid") {
+    return NextResponse.json(
+      { code: "TOOL_NOT_FOUND", message: `Unknown paid tool: ${toolName}` },
+      { status: 404 },
+    );
+  }
   const pr = buildPaymentRequired({
     env,
     tool,

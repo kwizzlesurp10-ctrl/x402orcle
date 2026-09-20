@@ -34,31 +34,13 @@ export type PaymentRequired = {
   extensions: BazaarExtension;
 };
 
-function inputSchemaFor(tool: OracleToolSpec): {
-  properties: Record<string, { type: string; description?: string }>;
-  required?: string[];
-} {
-  const keys = Object.keys(tool.inputExample);
-  const properties: Record<string, { type: string; description?: string }> = {};
-  for (const k of keys) {
-    const v = tool.inputExample[k];
-    properties[k] = {
-      type: Array.isArray(v) ? "array" : typeof v === "number" ? "number" : "string",
-    };
-  }
-  return {
-    properties,
-    required: keys.length ? [keys[0]!] : undefined,
-  };
-}
-
 export function bazaarForTool(tool: OracleToolSpec, transport: "http" | "mcp"): BazaarExtension {
   if (transport === "mcp") {
     return declareDiscoveryExtension({
       toolName: tool.name,
       description: tool.description.slice(0, 500),
       transport: "streamable-http",
-      inputSchema: inputSchemaFor(tool),
+      inputSchema: tool.inputSchema,
       example: tool.inputExample,
       output: { example: tool.outputExample },
     } as never) as unknown as BazaarExtension;
@@ -68,7 +50,7 @@ export function bazaarForTool(tool: OracleToolSpec, transport: "http" | "mcp"): 
     method: tool.httpMethod,
     ...(isGet ? {} : { bodyType: "json" as const }),
     input: tool.inputExample,
-    inputSchema: inputSchemaFor(tool),
+    inputSchema: tool.inputSchema,
     output: { example: tool.outputExample },
   } as never) as unknown as BazaarExtension;
 }
