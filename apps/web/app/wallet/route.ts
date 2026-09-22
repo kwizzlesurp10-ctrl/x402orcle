@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_PAY_TO } from "@x402orcle/oracle-brain";
-import { oracleEnv } from "../../../lib/env";
+import { oracleEnv } from "../../lib/env";
 
 export const dynamic = "force-dynamic";
 
