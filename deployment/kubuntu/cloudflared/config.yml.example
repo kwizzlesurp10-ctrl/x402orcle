@@ -1,0 +1,13 @@
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/credentials.json
+
+originRequest:
+  connectTimeout: 10s
+  noHappyEyeballs: false
+
+ingress:
+  - hostname: oracle.example.com
+    service: http://oracle:3001
+  - hostname: swarm.example.com
+    service: http://swarm:3000
+  - service: http_status:404

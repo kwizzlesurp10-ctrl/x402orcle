@@ -1,0 +1,12 @@
+.git
+.github
+.next
+**/.next
+node_modules
+**/node_modules
+deployment/kubuntu/.env.production
+deployment/kubuntu/cloudflared/config.yml
+deployment/kubuntu/cloudflared/*.json
+coverage
+**/coverage
+*.log

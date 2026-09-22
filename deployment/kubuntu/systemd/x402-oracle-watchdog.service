@@ -1,0 +1,14 @@
+[Unit]
+Description=Verify and recover x402 Oracle Swarm
+After=x402-oracle-swarm.service
+Requires=x402-oracle-swarm.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/x402-oracle/deployment/kubuntu
+ExecStart=/opt/x402-oracle/deployment/kubuntu/scripts/watchdog.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/x402-oracle /var/lib/docker /run/docker.sock

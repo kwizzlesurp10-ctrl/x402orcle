@@ -1,0 +1,27 @@
+[Unit]
+Description=x402 Oracle and Crediting Swarm
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/x402-oracle/deployment/kubuntu
+EnvironmentFile=/opt/x402-oracle/deployment/kubuntu/.env.production
+ExecStartPre=/opt/x402-oracle/deployment/kubuntu/scripts/preflight.sh
+ExecStart=/usr/bin/docker compose --env-file .env.production -f docker-compose.yml up --remove-orphans
+ExecStop=/usr/bin/docker compose --env-file .env.production -f docker-compose.yml down --timeout 30
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=300
+TimeoutStopSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/x402-oracle /var/lib/docker /run/docker.sock
+
+[Install]
+WantedBy=multi-user.target

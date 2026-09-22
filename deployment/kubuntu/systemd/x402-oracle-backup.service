@@ -1,0 +1,12 @@
+[Unit]
+Description=Back up x402 Oracle Swarm non-secret state
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/x402-oracle/deployment/kubuntu
+ExecStart=/opt/x402-oracle/deployment/kubuntu/scripts/backup.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/x402-oracle
