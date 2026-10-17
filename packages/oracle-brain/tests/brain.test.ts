@@ -130,6 +130,31 @@ describe("discovery surfaces", () => {
     expect(card.securitySchemes?.x402Payment?.type).toBe("apiKey");
   });
 
+  it("agent card skills carry machine-readable x402 terms and string examples", () => {
+    const card = agentCard(env);
+    expect(card.capabilities.extensions[0]?.uri).toBe(
+      "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
+    );
+    expect(card.supportedInterfaces).toHaveLength(1);
+    expect(card.supportedInterfaces[0]?.protocolVersion).toBe("0.3");
+    expect(card.links.x402).toContain("/.well-known/x402");
+    expect(card.links.a2a).toContain("/a2a");
+    for (const s of card.skills) {
+      expect(s.tags.length).toBeGreaterThan(0);
+      expect(s.examples.every((e) => typeof e === "string")).toBe(true);
+      expect(s.inputModes.length).toBeGreaterThan(0);
+      expect(s.outputModes.length).toBeGreaterThan(0);
+      expect(s.x402.network).toBe(env.network);
+      expect(s.x402.assetSymbol).toBe("USDC");
+      expect(s.x402.payTo).toBe(env.payTo);
+      expect(s.x402.endpoint.url).toContain(s.id === "oracle_health" ? "/api/health" : "/api/");
+      if (s.x402.paid) {
+        expect(Number(s.x402.amount)).toBeGreaterThan(0);
+        expect(s.x402.scheme).toBe("exact");
+      }
+    }
+  });
+
   it("llms.txt and openapi advertise payTo + x-payment-info", () => {
     const txt = llmsTxt(env);
     expect(txt).toContain(env.payTo);
