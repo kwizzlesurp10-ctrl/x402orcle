@@ -7,6 +7,13 @@ import type { OracleEnv } from "./env.js";
 import { demoVerify } from "./demo-payment.js";
 import { cdpAuthHeaders } from "./cdp-jwt.js";
 import { validateConsultInput } from "./validate-input.js";
+import {
+  backfillDiscovery,
+  bazaarIndexingLogLine,
+  bazaarIndexingStatus,
+  type BackfillResult,
+  type BazaarIndexingStatus,
+} from "./bazaar-indexing.js";
 
 export type ConsultResult = {
   status: number;
@@ -19,7 +26,37 @@ export type FacilitatorVerifyResult = {
   payer?: string;
   transaction?: string;
   reason?: string;
+  /** Bazaar indexing outcome reported by the facilitator on settle. */
+  bazaarIndexing?: BazaarIndexingStatus;
 };
+
+/**
+ * CDP only catalogs a settled payment whose PaymentPayload carries
+ * `resource` and the echoed `extensions.bazaar`. Buyers often omit both, so
+ * copy them from our own advertised challenge (never overwriting buyer data).
+ * Returns a copy; the buyer's decoded header object is not mutated.
+ */
+/** Settle outcome wins; fall back to what verify reported; else not_reported. */
+export function preferIndexing(
+  settle: BazaarIndexingStatus | undefined,
+  verify: BazaarIndexingStatus | undefined,
+): BazaarIndexingStatus {
+  if (settle && settle.status !== "not_reported") return settle;
+  if (verify && verify.status !== "not_reported") return { ...verify, source: `verify:${verify.source}` };
+  return settle ?? { status: "not_reported", source: "none" };
+}
+
+export function withDiscoveryBackfill(
+  payment: unknown,
+  pr: ReturnType<typeof buildPaymentRequired>,
+): { payment: unknown; backfilled: BackfillResult } {
+  if (!payment || typeof payment !== "object" || Array.isArray(payment)) {
+    return { payment, backfilled: { resource: false, bazaar: false } };
+  }
+  const copy = structuredClone(payment) as Parameters<typeof backfillDiscovery>[0];
+  const backfilled = backfillDiscovery(copy, { resource: pr.resource, bazaar: pr.extensions?.bazaar });
+  return { payment: copy, backfilled };
+}
 
 function facilitatorBases(env: OracleEnv): string[] {
   const out: string[] = [];
@@ -71,11 +108,22 @@ async function verifyAt(opts: {
     isValid?: boolean;
     payer?: string;
     invalidReason?: string;
+    extensions?: Record<string, unknown>;
   };
+  // Facilitators may report the Bazaar outcome on verify, settle, or both.
+  const bazaarIndexing = bazaarIndexingStatus({
+    extensionResponsesHeader: verifyRes.headers?.get?.("EXTENSION-RESPONSES") ?? null,
+    responseBody: verifyJson,
+  });
   if (!verifyJson.isValid) {
-    return { ok: false, payer: verifyJson.payer, reason: verifyJson.invalidReason || "INVALID_PAYMENT" };
+    return {
+      ok: false,
+      payer: verifyJson.payer,
+      reason: verifyJson.invalidReason || "INVALID_PAYMENT",
+      bazaarIndexing,
+    };
   }
-  return { ok: true, payer: verifyJson.payer };
+  return { ok: true, payer: verifyJson.payer, bazaarIndexing };
 }
 
 async function settleAt(opts: {
@@ -110,14 +158,20 @@ async function settleAt(opts: {
     success?: boolean;
     payer?: string;
     transaction?: string;
+    extensions?: Record<string, unknown>;
   };
+  const bazaarIndexing = bazaarIndexingStatus({
+    extensionResponsesHeader: settleRes.headers?.get?.("EXTENSION-RESPONSES") ?? null,
+    responseBody: settleJson,
+  });
   if (!settleJson.success) {
-    return { ok: false, reason: "FACILITATOR_SETTLE_FAILED" };
+    return { ok: false, reason: "FACILITATOR_SETTLE_FAILED", bazaarIndexing };
   }
   return {
     ok: true,
     payer: settleJson.payer,
     transaction: settleJson.transaction,
+    bazaarIndexing,
   };
 }
 
@@ -136,6 +190,7 @@ async function verifyThenSettleAt(opts: {
     ok: true,
     payer: settled.payer || verified.payer,
     transaction: settled.transaction,
+    bazaarIndexing: preferIndexing(settled.bazaarIndexing, verified.bazaarIndexing),
   };
 }
 
@@ -313,9 +368,10 @@ export async function handleConsult(opts: {
       return { status: 200, body: envl };
     }
 
+    const { payment, backfilled } = withDiscoveryBackfill(opts.payment, pr);
     const verified = await facilitatorVerify({
       env: opts.env,
-      payment: opts.payment,
+      payment,
       requirements: pr.accepts[0]!,
       fetchImpl: opts.fetchImpl,
     });
@@ -341,10 +397,21 @@ export async function handleConsult(opts: {
 
     const settled = await facilitatorSettle({
       env: opts.env,
-      payment: opts.payment,
+      payment,
       requirements: pr.accepts[0]!,
       fetchImpl: opts.fetchImpl,
     });
+    const bazaarIndexing = preferIndexing(settled.bazaarIndexing, verified.bazaarIndexing);
+    console.log(
+      bazaarIndexingLogLine({
+        service: "x402orcle",
+        resourceUrl: pr.resource.url,
+        transaction: settled.transaction,
+        payer: settled.payer || verified.payer,
+        backfilled,
+        indexing: bazaarIndexing,
+      }),
+    );
     if (!settled.ok) {
       return {
         status: 402,
@@ -371,6 +438,8 @@ export async function handleConsult(opts: {
         transaction: settled.transaction,
         payer: settled.payer || verified.payer,
         paidAt: new Date().toISOString(),
+        bazaarIndexing,
+        discoveryBackfilled: backfilled,
       },
     });
     return { status: 200, body: envl };

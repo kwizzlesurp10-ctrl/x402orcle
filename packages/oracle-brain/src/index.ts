@@ -52,3 +52,10 @@ export {
 export { validateConsultInput, isPaidConsultTool } from "./validate-input.js";
 export { generateCdpJwt, cdpAuthHeaders } from "./cdp-jwt.js";
 export { landingHtml, landingConsultCopy, LANDING_ASK_BODY } from "./landing.js";
+export {
+  backfillDiscovery,
+  bazaarIndexingStatus,
+  decodeExtensionResponses,
+  type BazaarIndexingStatus,
+  type BackfillResult,
+} from "./bazaar-indexing.js";

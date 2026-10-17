@@ -17,6 +17,14 @@ export const WisdomEnvelopeSchema = z.object({
       transaction: z.string().optional(),
       payer: z.string().optional(),
       paidAt: z.string(),
+      bazaarIndexing: z
+        .object({
+          status: z.string(),
+          rejectedReason: z.string().optional(),
+          source: z.string(),
+        })
+        .optional(),
+      discoveryBackfilled: z.object({ resource: z.boolean(), bazaar: z.boolean() }).optional(),
     })
     .optional(),
   human: z.string(),

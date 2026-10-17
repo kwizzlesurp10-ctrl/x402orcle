@@ -378,7 +378,7 @@ export function llmsFullTxt(env: OracleEnv): string {
     JSON.stringify({
       verdict: "APPROVE | WARN | REJECT",
       wisdom: "In-depth analysis and guidance",
-      implementation_prompt: "Executable prompt for code generation",
+      implementation_prompt: "Developer build notes (plain text, for human review)",
       risk: "LOW | MEDIUM | HIGH",
       citations: ["https://docs.cdp.coinbase.com/x402"],
       receipt: {

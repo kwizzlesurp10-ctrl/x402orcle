@@ -68,7 +68,7 @@ export const TOOLS: OracleToolSpec[] = [
     serviceName: "Oracle Ask",
     tags: ["x402", "mcp", "a2a", "bazaar", "oracle"],
     description:
-      "Paid x402/MCP/A2A/Bazaar consult. Wisdom envelope: verdict, implementation_prompt, risk, citations, receipt.",
+      "Paid x402/MCP/A2A/Bazaar consult. JSON wisdom envelope: verdict, wisdom, developer build notes, risk, citations, receipt.",
     inputExample: {
       question: "Why is my Bazaar listing unranked after 402s with no settlement?",
       audience: "agent",
@@ -76,7 +76,6 @@ export const TOOLS: OracleToolSpec[] = [
     outputExample: {
       verdict: "no_rank_without_settle",
       wisdom: "Cataloging is settlement-triggered.",
-      implementation_prompt: "…",
       risk: "burning USDC on frozen catalog copy",
       citations: ["https://docs.cdp.coinbase.com/x402/seller/get-discovered"],
     },
@@ -150,7 +149,7 @@ export const TOOLS: OracleToolSpec[] = [
     serviceName: "Oracle Task",
     tags: ["a2a", "outcome", "x402", "oracle"],
     description:
-      "Outcome A2A task: typed diffs + operator prompt + revenue/risk for a concrete x402 shipping goal.",
+      "Outcome A2A task: typed diffs, operator handoff notes, and revenue/risk for a concrete x402 shipping goal.",
     inputExample: {
       goal: "List oracle_ask on CDP Bazaar after first mainnet settle",
       constraints: "seller-only host, no EVM_PRIVATE_KEY",
