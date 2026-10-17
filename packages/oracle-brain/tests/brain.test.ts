@@ -119,11 +119,15 @@ describe("consult envelope", () => {
 });
 
 describe("discovery surfaces", () => {
-  it("agent card has a2a-x402 and payTo", () => {
+  it("agent card has a2a-x402, /a2a url, and apiKey payment scheme", () => {
     const card = agentCard(env);
     expect(card.capabilities.extensions[0]?.uri).toContain("a2a-x402");
     expect(card.payments.rails[0]?.payTo).toBe(env.payTo);
     expect(card.funding.payTo).toBe(env.payTo);
+    expect(card.url).toContain("/a2a");
+    expect(card.defaultInputModes?.length).toBeGreaterThan(0);
+    expect(card.supportedInterfaces?.[0]?.protocolBinding).toBe("JSONRPC");
+    expect(card.securitySchemes?.x402Payment?.type).toBe("apiKey");
   });
 
   it("llms.txt and openapi advertise payTo + x-payment-info", () => {

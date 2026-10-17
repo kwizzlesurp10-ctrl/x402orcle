@@ -1,24 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleConsult, decodePaymentHeader } from "@x402orcle/oracle-brain";
+import {
+  decodePaymentHeader,
+  getTool,
+  handleConsult,
+  isPaidConsultTool,
+} from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../../../lib/env";
 
 export const dynamic = "force-dynamic";
 
+function paymentHeaderFrom(req: NextRequest): string {
+  return req.headers.get("payment-signature") || req.headers.get("PAYMENT-SIGNATURE") || "";
+}
+
 async function consult(req: NextRequest, tool: string) {
   const env = oracleEnv();
-  const paymentHeader =
-    req.headers.get("payment-signature") || req.headers.get("PAYMENT-SIGNATURE") || "";
+  const spec = getTool(tool);
+  if (!spec) {
+    return NextResponse.json({ code: "UNKNOWN_TOOL", message: `UNKNOWN_TOOL:${tool}` }, { status: 404 });
+  }
+
+  const paymentHeader = paymentHeaderFrom(req);
+  const hasPaymentHeader = Boolean(paymentHeader.trim());
+
+  if (isPaidConsultTool(tool) && !hasPaymentHeader) {
+    const result = await handleConsult({
+      env,
+      toolName: tool,
+      input: {},
+      payment: null,
+      transport: "http",
+    });
+    return NextResponse.json(result.body, { status: result.status, headers: result.headers });
+  }
+
   let input: Record<string, unknown> = {};
   if (req.method === "POST") {
-    try {
-      input = (await req.json()) as Record<string, unknown>;
-    } catch {
-      input = {};
+    const raw = await req.text();
+    if (raw.trim()) {
+      try {
+        input = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        return NextResponse.json(
+          { code: "INVALID_REQUEST", message: "Request body must be valid JSON" },
+          { status: 400 },
+        );
+      }
     }
   } else {
     input = Object.fromEntries(req.nextUrl.searchParams.entries());
   }
-  const payment = paymentHeader ? decodePaymentHeader(paymentHeader) : (input.payment as unknown) ?? null;
+
+  const payment = hasPaymentHeader
+    ? decodePaymentHeader(paymentHeader)
+    : (input.payment as unknown) ?? null;
+
   const result = await handleConsult({
     env,
     toolName: tool,

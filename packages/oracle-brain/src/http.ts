@@ -6,6 +6,7 @@ import { buildPaymentRequired, encodePaymentRequired, type PaymentAccept } from 
 import type { OracleEnv } from "./env.js";
 import { demoVerify } from "./demo-payment.js";
 import { cdpAuthHeaders } from "./cdp-jwt.js";
+import { validateConsultInput } from "./validate-input.js";
 
 export type ConsultResult = {
   status: number;
@@ -30,22 +31,24 @@ function facilitatorBases(env: OracleEnv): string[] {
   return out;
 }
 
-async function verifyThenSettleAt(opts: {
+function paymentPayload(env: OracleEnv, payment: unknown, requirements: PaymentAccept) {
+  return {
+    x402Version: 2,
+    paymentPayload: payment,
+    paymentRequirements: requirements,
+  };
+}
+
+async function verifyAt(opts: {
   env: OracleEnv;
   base: string;
   payment: unknown;
   requirements: PaymentAccept;
   fetchImpl: typeof fetch;
 }): Promise<FacilitatorVerifyResult> {
-  const payload = {
-    x402Version: 2,
-    paymentPayload: opts.payment,
-    paymentRequirements: opts.requirements,
-  };
-  const jsonHeaders: Record<string, string> = { "content-type": "application/json" };
   const verifyUrl = `${opts.base}/verify`;
   const headers = {
-    ...jsonHeaders,
+    "content-type": "application/json",
     ...cdpAuthHeaders({
       apiKeyId: opts.env.cdpApiKeyId,
       apiKeySecret: opts.env.cdpApiKeySecret,
@@ -53,11 +56,10 @@ async function verifyThenSettleAt(opts: {
       url: verifyUrl,
     }),
   };
-
   const verifyRes = await opts.fetchImpl(verifyUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify(payload),
+    body: JSON.stringify(paymentPayload(opts.env, opts.payment, opts.requirements)),
   });
   if (verifyRes.status === 401 || verifyRes.status === 403) {
     return { ok: false, reason: "FACILITATOR_AUTH_REQUIRED" };
@@ -73,10 +75,19 @@ async function verifyThenSettleAt(opts: {
   if (!verifyJson.isValid) {
     return { ok: false, payer: verifyJson.payer, reason: verifyJson.invalidReason || "INVALID_PAYMENT" };
   }
+  return { ok: true, payer: verifyJson.payer };
+}
 
+async function settleAt(opts: {
+  env: OracleEnv;
+  base: string;
+  payment: unknown;
+  requirements: PaymentAccept;
+  fetchImpl: typeof fetch;
+}): Promise<FacilitatorVerifyResult> {
   const settleUrl = `${opts.base}/settle`;
-  const settleHeaders = {
-    ...jsonHeaders,
+  const headers = {
+    "content-type": "application/json",
     ...cdpAuthHeaders({
       apiKeyId: opts.env.cdpApiKeyId,
       apiKeySecret: opts.env.cdpApiKeySecret,
@@ -86,8 +97,8 @@ async function verifyThenSettleAt(opts: {
   };
   const settleRes = await opts.fetchImpl(settleUrl, {
     method: "POST",
-    headers: settleHeaders,
-    body: JSON.stringify(payload),
+    headers,
+    body: JSON.stringify(paymentPayload(opts.env, opts.payment, opts.requirements)),
   });
   if (settleRes.status === 401 || settleRes.status === 403) {
     return { ok: false, reason: "FACILITATOR_AUTH_REQUIRED" };
@@ -105,9 +116,81 @@ async function verifyThenSettleAt(opts: {
   }
   return {
     ok: true,
-    payer: settleJson.payer || verifyJson.payer,
+    payer: settleJson.payer,
     transaction: settleJson.transaction,
   };
+}
+
+async function verifyThenSettleAt(opts: {
+  env: OracleEnv;
+  base: string;
+  payment: unknown;
+  requirements: PaymentAccept;
+  fetchImpl: typeof fetch;
+}): Promise<FacilitatorVerifyResult> {
+  const verified = await verifyAt(opts);
+  if (!verified.ok) return verified;
+  const settled = await settleAt(opts);
+  if (!settled.ok) return settled;
+  return {
+    ok: true,
+    payer: settled.payer || verified.payer,
+    transaction: settled.transaction,
+  };
+}
+
+export async function facilitatorVerify(opts: {
+  env: OracleEnv;
+  payment: unknown;
+  requirements: PaymentAccept;
+  fetchImpl?: typeof fetch;
+}): Promise<FacilitatorVerifyResult> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const bases = facilitatorBases(opts.env);
+  let last: FacilitatorVerifyResult = { ok: false, reason: "FACILITATOR_VERIFY_FAILED" };
+  for (const base of bases) {
+    const result = await verifyAt({
+      env: opts.env,
+      base,
+      payment: opts.payment,
+      requirements: opts.requirements,
+      fetchImpl,
+    });
+    if (result.ok) return result;
+    last = result;
+    if (result.reason === "FACILITATOR_AUTH_REQUIRED" || result.reason?.startsWith("FACILITATOR_VERIFY_")) {
+      continue;
+    }
+    return result;
+  }
+  return last;
+}
+
+export async function facilitatorSettle(opts: {
+  env: OracleEnv;
+  payment: unknown;
+  requirements: PaymentAccept;
+  fetchImpl?: typeof fetch;
+}): Promise<FacilitatorVerifyResult> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const bases = facilitatorBases(opts.env);
+  let last: FacilitatorVerifyResult = { ok: false, reason: "FACILITATOR_SETTLE_FAILED" };
+  for (const base of bases) {
+    const result = await settleAt({
+      env: opts.env,
+      base,
+      payment: opts.payment,
+      requirements: opts.requirements,
+      fetchImpl,
+    });
+    if (result.ok) return result;
+    last = result;
+    if (result.reason === "FACILITATOR_AUTH_REQUIRED" || result.reason?.startsWith("FACILITATOR_SETTLE_")) {
+      continue;
+    }
+    return result;
+  }
+  return last;
 }
 
 export async function facilitatorVerifyThenSettle(opts: {
@@ -137,6 +220,46 @@ export async function facilitatorVerifyThenSettle(opts: {
   return last;
 }
 
+function paymentChallengeResult(pr: ReturnType<typeof buildPaymentRequired>): ConsultResult {
+  return {
+    status: 402,
+    headers: {
+      "PAYMENT-REQUIRED": encodePaymentRequired(pr),
+      "Cache-Control": "no-store",
+    },
+    body: pr,
+  };
+}
+
+function validatePaidInput(opts: {
+  tool: ReturnType<typeof requireTool>;
+  env: OracleEnv;
+  priceUsd: number;
+  input: Record<string, unknown>;
+}): ConsultResult | { ok: true; input: Record<string, unknown> } {
+  const validated = validateConsultInput(opts.tool, opts.input);
+  if (!validated.ok) {
+    return {
+      status: 400,
+      body: {
+        code: validated.code,
+        message: validated.message,
+        issues: validated.issues,
+      },
+    };
+  }
+  const gate = gatePaidTool({
+    toolName: opts.tool.name,
+    priceUsd: opts.priceUsd,
+    maxPriceUsd: opts.env.maxPriceUsd,
+    userText: JSON.stringify(validated.input),
+  });
+  if (!gate.ok) {
+    return { status: 400, body: { code: gate.code, message: gate.message } };
+  }
+  return { ok: true, input: validated.input };
+}
+
 export async function handleConsult(opts: {
   env: OracleEnv;
   toolName: string;
@@ -147,31 +270,17 @@ export async function handleConsult(opts: {
 }): Promise<ConsultResult> {
   const tool = requireTool(opts.toolName);
   const priceUsd = clampPrice(tool, undefined, opts.env.maxPriceUsd);
-  const gate = gatePaidTool({
-    toolName: tool.name,
-    priceUsd,
-    maxPriceUsd: opts.env.maxPriceUsd,
-    userText: JSON.stringify(opts.input),
-  });
-  if (!gate.ok) {
-    return { status: 400, body: { code: gate.code, message: gate.message } };
-  }
   const pr = buildPaymentRequired({
     env: opts.env,
     tool,
     priceUsd,
     transport: opts.transport,
   });
+
   if (tool.tier === "paid" && !opts.payment) {
-    return {
-      status: 402,
-      headers: {
-        "PAYMENT-REQUIRED": encodePaymentRequired(pr),
-        "Cache-Control": "no-store",
-      },
-      body: pr,
-    };
+    return paymentChallengeResult(pr);
   }
+
   if (tool.tier === "paid") {
     if (opts.env.demoMode) {
       const v = demoVerify(opts.payment, opts.env.network, opts.env.payTo);
@@ -182,10 +291,14 @@ export async function handleConsult(opts: {
           body: pr,
         };
       }
+      const checked = validatePaidInput({ tool, env: opts.env, priceUsd, input: opts.input });
+      if (!("ok" in checked && checked.ok)) {
+        return checked as ConsultResult;
+      }
       const envl = await maybeLlmConsult({
         tool,
         env: opts.env,
-        input: opts.input,
+        input: checked.input,
         receipt: {
           tool: tool.name,
           priceUsd,
@@ -200,43 +313,77 @@ export async function handleConsult(opts: {
       return { status: 200, body: envl };
     }
 
-    const live = await facilitatorVerifyThenSettle({
+    const verified = await facilitatorVerify({
       env: opts.env,
       payment: opts.payment,
       requirements: pr.accepts[0]!,
       fetchImpl: opts.fetchImpl,
     });
-    if (!live.ok) {
+    if (!verified.ok) {
       return {
         status: 402,
         headers: { "PAYMENT-REQUIRED": encodePaymentRequired(pr) },
         body: {
           ...pr,
-          facilitator_error: live.reason,
+          facilitator_error: verified.reason,
           note:
-            live.reason === "FACILITATOR_AUTH_REQUIRED"
+            verified.reason === "FACILITATOR_AUTH_REQUIRED"
               ? "CDP facilitator verify/settle needs CDP_API_KEY_ID + CDP_API_KEY_SECRET on the seller host (not a wallet key)."
               : "Payment did not verify/settle. Do not retry blindly; inspect facilitator_error.",
         },
       };
     }
+
+    const checked = validatePaidInput({ tool, env: opts.env, priceUsd, input: opts.input });
+    if (!("ok" in checked && checked.ok)) {
+      return checked as ConsultResult;
+    }
+
+    const settled = await facilitatorSettle({
+      env: opts.env,
+      payment: opts.payment,
+      requirements: pr.accepts[0]!,
+      fetchImpl: opts.fetchImpl,
+    });
+    if (!settled.ok) {
+      return {
+        status: 402,
+        headers: { "PAYMENT-REQUIRED": encodePaymentRequired(pr) },
+        body: {
+          ...pr,
+          facilitator_error: settled.reason,
+          note: "Payment verified but settlement failed. Do not retry blindly; inspect facilitator_error.",
+        },
+      };
+    }
+
     const envl = await maybeLlmConsult({
       tool,
       env: opts.env,
-      input: opts.input,
+      input: checked.input,
       receipt: {
         tool: tool.name,
         priceUsd,
         network: opts.env.network,
         payTo: opts.env.payTo,
         mode: "live",
-        settlementId: live.transaction || randomUUID(),
-        transaction: live.transaction,
-        payer: live.payer,
+        settlementId: settled.transaction || randomUUID(),
+        transaction: settled.transaction,
+        payer: settled.payer || verified.payer,
         paidAt: new Date().toISOString(),
       },
     });
     return { status: 200, body: envl };
+  }
+
+  const gate = gatePaidTool({
+    toolName: tool.name,
+    priceUsd,
+    maxPriceUsd: opts.env.maxPriceUsd,
+    userText: JSON.stringify(opts.input),
+  });
+  if (!gate.ok) {
+    return { status: 400, body: { code: gate.code, message: gate.message } };
   }
   return { status: 200, body: { ok: true } };
 }

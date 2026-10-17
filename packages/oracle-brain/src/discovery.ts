@@ -109,26 +109,30 @@ export function mcpJson(env: OracleEnv) {
 
 export function agentCard(env: OracleEnv) {
   const f = funding(env);
+  const a2aUrl = `${env.publicBaseUrl.replace(/\/$/, "")}/a2a`;
   return {
     protocolVersion: "1.0",
     id: SERVICE.slug,
     name: SERVICE.name,
     version: SERVICE.version,
     description: SERVICE.thesis,
-    url: env.publicBaseUrl,
+    url: a2aUrl,
     documentationUrl: `${env.publicBaseUrl}/llms.txt`,
+    defaultInputModes: ["application/json", "text/plain"],
+    defaultOutputModes: ["application/json", "text/plain"],
     provider: {
       organization: "Local AI Integrations",
       url: env.publicBaseUrl,
     },
-    transports: [
+    supportedInterfaces: [
       {
-        type: "http",
-        url: `${env.publicBaseUrl}/api/consult`,
-        methods: ["GET", "POST"],
+        protocolBinding: "JSONRPC",
+        protocolVersion: "1.0",
+        url: a2aUrl,
       },
       {
-        type: "mcp-streamable-http",
+        protocolBinding: "HTTP+JSON",
+        protocolVersion: "1.0",
         url: `${env.publicBaseUrl}/mcp`,
       },
     ],
@@ -151,16 +155,15 @@ export function agentCard(env: OracleEnv) {
       ],
     },
     securitySchemes: {
-      x402: {
-        type: "x402",
-        scheme: "exact",
-        header: "PAYMENT-SIGNATURE",
-        challengeHeader: "PAYMENT-REQUIRED",
-        network: env.network,
-        asset: usdcForNetwork(env.network),
-        payTo: env.payTo,
+      x402Payment: {
+        type: "apiKey",
+        in: "header",
+        name: "PAYMENT-SIGNATURE",
+        description:
+          "x402 v2 payment payload (base64 JSON). Unpaid calls receive HTTP 402 or an A2A task with x402.payment.required metadata per the a2a-x402 extension.",
       },
     },
+    security: [{ x402Payment: [] }],
     payments: {
       rails: [
         {
