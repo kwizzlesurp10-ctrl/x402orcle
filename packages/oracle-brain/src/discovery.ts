@@ -107,50 +107,84 @@ export function mcpJson(env: OracleEnv) {
   };
 }
 
+/** Canonical a2a-x402 extension URI (spec v0.2 §2: implementations MUST use it). */
+export const A2A_X402_EXTENSION_URI =
+  "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2";
+/** Pre-rename URI, still declared so older clients keep matching. */
+export const A2A_X402_LEGACY_EXTENSION_URI = "https://github.com/google-a2a/a2a-x402/v0.1";
+/**
+ * /a2a speaks A2A 0.3 wire shapes (kind-tagged objects, lowercase task states),
+ * so the interface is declared as 0.3 rather than 1.0.
+ */
+export const A2A_INTERFACE_PROTOCOL_VERSION = "0.3";
+
 export function agentCard(env: OracleEnv) {
   const f = funding(env);
-  const a2aUrl = `${env.publicBaseUrl.replace(/\/$/, "")}/a2a`;
+  const base = env.publicBaseUrl.replace(/\/$/, "");
+  const a2aUrl = `${base}/a2a`;
+  const asset = usdcForNetwork(env.network);
+  const catalogUrl = `${base}/.well-known/x402`;
   return {
-    protocolVersion: "1.0",
+    protocolVersion: `${A2A_INTERFACE_PROTOCOL_VERSION}.0`,
     id: SERVICE.slug,
     name: SERVICE.name,
     version: SERVICE.version,
-    description: SERVICE.thesis,
+    description:
+      `${SERVICE.thesis} Paid x402 oracle on Base: answers questions, diagnoses HTTP 402 challenges, ` +
+      "reviews MCP servers, rewrites Bazaar listings and completes oracle tasks. " +
+      `USDC on ${env.network}, payTo ${env.payTo}. Free: /api/health, /api/pricing. Catalog: ${catalogUrl}.`,
     url: a2aUrl,
-    documentationUrl: `${env.publicBaseUrl}/llms.txt`,
+    preferredTransport: "JSONRPC",
+    additionalInterfaces: [{ url: a2aUrl, transport: "JSONRPC" }],
+    documentationUrl: `${base}/llms.txt`,
     defaultInputModes: ["application/json", "text/plain"],
     defaultOutputModes: ["application/json", "text/plain"],
     provider: {
       organization: "Local AI Integrations",
-      url: env.publicBaseUrl,
+      url: base,
     },
+    // Only real A2A endpoints belong here; MCP is linked below, not an A2A binding.
     supportedInterfaces: [
       {
         protocolBinding: "JSONRPC",
-        protocolVersion: "1.0",
+        protocolVersion: A2A_INTERFACE_PROTOCOL_VERSION,
         url: a2aUrl,
       },
-      {
-        protocolBinding: "HTTP+JSON",
-        protocolVersion: "1.0",
-        url: `${env.publicBaseUrl}/mcp`,
-      },
     ],
+    links: {
+      a2a: a2aUrl,
+      x402: catalogUrl,
+      agentCard: `${base}/.well-known/agent-card.json`,
+      mcp: `${base}/mcp`,
+      openapi: `${base}/openapi.json`,
+      llms: `${base}/llms.txt`,
+      pricing: `${base}/api/pricing`,
+    },
     capabilities: {
       streaming: false,
       pushNotifications: false,
       stateTransitionHistory: false,
       extensions: [
         {
-          uri: "https://github.com/google-a2a/a2a-x402/v0.1",
-          description: "x402 exact scheme on Base USDC",
+          uri: A2A_X402_EXTENSION_URI,
+          description: "x402 v2 exact scheme, USDC on Base, settled by the CDP facilitator",
           required: false,
           params: {
+            x402Version: 2,
+            scheme: "exact",
             network: env.network,
-            asset: usdcForNetwork(env.network),
+            asset,
+            assetSymbol: "USDC",
             payTo: env.payTo,
             facilitator: env.facilitatorUrl,
+            catalog: catalogUrl,
+            a2a: a2aUrl,
           },
+        },
+        {
+          uri: A2A_X402_LEGACY_EXTENSION_URI,
+          description: "Legacy URI for the same x402 extension (pre-v0.2 clients).",
+          required: false,
         },
       ],
     },
@@ -171,52 +205,75 @@ export function agentCard(env: OracleEnv) {
           protocol: "x402",
           version: 2,
           network: env.network,
-          asset: usdcForNetwork(env.network),
+          asset,
           assetSymbol: "USDC",
           payTo: env.payTo,
           facilitator: env.facilitatorUrl,
           challengeHeader: "PAYMENT-REQUIRED",
           paymentHeader: "PAYMENT-SIGNATURE",
-          catalog: `${env.publicBaseUrl}/.well-known/x402`,
+          catalog: catalogUrl,
         },
       ],
     },
     funding: f,
-    skills: TOOLS.map((t) => ({
-      id: t.name,
-      name: t.serviceName,
-      description: t.description,
-      tier: t.tier,
-      tags: t.tags,
-      pricing: {
-        mode: t.tier === "free" ? "free" : "fixed",
-        currency: "USD",
-        priceUsd: t.tier === "free" ? 0 : clampPrice(t, undefined, env.maxPriceUsd),
-        atomicAmount: t.tier === "free" ? "0" : usdToAtomic(clampPrice(t, undefined, env.maxPriceUsd)),
-        network: env.network,
-        payTo: env.payTo,
-      },
-      inputSchema: jsonSchemaFromExample(t.inputExample),
-      outputSchema: jsonSchemaFromExample(t.outputExample),
-      examples: [
-        {
-          input: t.inputExample,
-          output: t.outputExample,
+    skills: TOOLS.map((t) => {
+      const paid = t.tier !== "free";
+      const priceUsd = paid ? clampPrice(t, undefined, env.maxPriceUsd) : 0;
+      const httpUrl = `${base}${t.httpPath}`;
+      const bodyJson = JSON.stringify(t.inputExample ?? {});
+      return {
+        id: t.name,
+        name: t.serviceName,
+        description: paid
+          ? `${t.description} Price: $${priceUsd} USDC on ${env.network} via x402. HTTP: ${t.httpMethod} ${httpUrl}.`
+          : `${t.description} Free. HTTP: ${t.httpMethod} ${httpUrl}.`,
+        tier: t.tier,
+        tags: t.tags,
+        // A2A AgentSkill.examples is string[]; structured examples live in x402.example.
+        examples: [
+          t.httpMethod === "POST"
+            ? `POST ${httpUrl} Content-Type: application/json body: ${bodyJson}`
+            : `GET ${httpUrl}`,
+          `A2A: POST ${a2aUrl} message/send with message.metadata={"skillId":"${t.name}","input":${bodyJson}}`,
+          `MCP: tools/call ${t.name} at ${base}/mcp`,
+        ],
+        inputModes: ["application/json", "text/plain"],
+        outputModes: ["application/json"],
+        ...(paid ? { security: [{ x402Payment: [] }] } : {}),
+        x402: {
+          paid,
+          price: paid ? `$${priceUsd}` : "free",
+          amount: paid ? usdToAtomic(priceUsd) : "0",
+          currency: "USD",
+          ...(paid ? { scheme: "exact", x402Version: 2 } : {}),
+          network: env.network,
+          asset,
+          assetSymbol: "USDC",
+          payTo: env.payTo,
+          endpoint: { method: t.httpMethod, url: httpUrl },
+          a2a: { url: a2aUrl, skillId: t.name },
+          mcp: { url: `${base}/mcp`, toolName: t.name },
+          catalog: catalogUrl,
+          example: { input: t.inputExample, output: t.outputExample },
         },
-      ],
-      endpoints: [
-        {
-          transport: "http",
-          method: t.httpMethod,
-          url: `${env.publicBaseUrl}${t.httpPath}`,
+        pricing: {
+          mode: paid ? "fixed" : "free",
+          currency: "USD",
+          priceUsd,
+          atomicAmount: paid ? usdToAtomic(priceUsd) : "0",
+          network: env.network,
+          asset,
+          payTo: env.payTo,
         },
-        {
-          transport: "mcp",
-          toolName: t.name,
-          url: `${env.publicBaseUrl}/mcp`,
-        },
-      ],
-    })),
+        inputSchema: jsonSchemaFromExample(t.inputExample),
+        outputSchema: jsonSchemaFromExample(t.outputExample),
+        endpoints: [
+          { transport: "http", method: t.httpMethod, url: httpUrl },
+          { transport: "a2a", skillId: t.name, url: a2aUrl },
+          { transport: "mcp", toolName: t.name, url: `${base}/mcp` },
+        ],
+      };
+    }),
   };
 }
 
