@@ -70,7 +70,7 @@ describe("bazaar discovery backfill before settle", () => {
     expect(receipt.transaction).toBe("0xtx");
   });
 
-  it("keeps buyer-supplied resource/bazaar and records rejected reason from settle body", async () => {
+  it("replaces buyer-altered resource/bazaar with ours and records rejected reason from settle body", async () => {
     const env = liveEnv();
     const pr = buildPaymentRequired({ env, tool: requireTool("oracle_ask"), priceUsd: 0.1 });
     const { fetchImpl, calls } = recordingFetch(undefined, {
@@ -86,15 +86,33 @@ describe("bazaar discovery backfill before settle", () => {
       fetchImpl,
     });
     const settle = calls.find((c) => c.url.endsWith("/settle"))!;
-    expect(settle.body.paymentPayload.resource).toEqual(mine);
-    expect(settle.body.paymentPayload.extensions.bazaar).toEqual({ info: { x: 1 } });
+    expect(settle.body.paymentPayload.resource).toEqual(pr.resource);
+    expect(settle.body.paymentPayload.extensions.bazaar).toEqual(pr.extensions.bazaar);
     const receipt = (res.body as { receipt: Record<string, unknown> }).receipt;
     expect(receipt.bazaarIndexing).toEqual({
       status: "rejected",
       rejectedReason: "info failed schema validation",
       source: "response-body",
     });
-    expect(receipt.discoveryBackfilled).toEqual({ resource: false, bazaar: false });
+    expect(receipt.discoveryBackfilled).toEqual({ resource: true, bazaar: true });
+  });
+
+  it("leaves a byte-equal echo of our challenge alone", async () => {
+    const env = liveEnv();
+    const pr = buildPaymentRequired({ env, tool: requireTool("oracle_ask"), priceUsd: 0.1 });
+    const { fetchImpl } = recordingFetch();
+    const res = await handleConsult({
+      env,
+      toolName: "oracle_ask",
+      input: { question: "q" },
+      payment: { x402Version: 2, accepted: pr.accepts[0], resource: pr.resource, extensions: pr.extensions },
+      transport: "http",
+      fetchImpl,
+    });
+    expect((res.body as { receipt: Record<string, unknown> }).receipt.discoveryBackfilled).toEqual({
+      resource: false,
+      bazaar: false,
+    });
   });
 
   it("reports not_reported when the facilitator sends no indexing signal", async () => {
@@ -128,35 +146,28 @@ describe("bazaar discovery backfill before settle", () => {
 });
 
 describe("backfill safety and verify-reported status", () => {
-  it("does not attach our bazaar declaration to a buyer-supplied foreign resource url", async () => {
+  it("settles with our canonical resource even when the buyer sent a foreign or altered one", async () => {
     const env = liveEnv();
     const pr = buildPaymentRequired({ env, tool: requireTool("oracle_ask"), priceUsd: 0.1 });
-    const { fetchImpl, calls } = recordingFetch();
-    const res = await handleConsult({
-      env,
-      toolName: "oracle_ask",
-      input: { question: "q" },
-      payment: { x402Version: 2, accepted: pr.accepts[0], resource: { url: "https://attacker.example/x" } },
-      transport: "http",
-      fetchImpl,
-    });
-    const settle = calls.find((c) => c.url.endsWith("/settle"))!;
-    expect(settle.body.paymentPayload.resource).toEqual({ url: "https://attacker.example/x" });
-    expect(settle.body.paymentPayload.extensions).toBeUndefined();
-    expect((res.body as { receipt: Record<string, unknown> }).receipt.discoveryBackfilled).toEqual({
-      resource: false,
-      bazaar: false,
-    });
-  });
-
-  it("attaches bazaar when the buyer echoed our own resource url (query ignored)", () => {
-    const env = liveEnv();
-    const pr = buildPaymentRequired({ env, tool: requireTool("oracle_ask"), priceUsd: 0.1 });
-    const p: Record<string, unknown> = { resource: { url: `${pr.resource.url}?x=1` } };
-    expect(backfillDiscovery(p, { resource: pr.resource, bazaar: pr.extensions.bazaar })).toEqual({
-      resource: false,
-      bazaar: true,
-    });
+    for (const bad of [
+      { url: "https://attacker.example/x" },
+      { ...pr.resource, serviceName: "Totally Legit" },
+      { ...pr.resource, url: `${pr.resource.url}?ref=evil` },
+      { ...pr.resource, iconUrl: "https://attacker.example/i.png" },
+    ]) {
+      const { fetchImpl, calls } = recordingFetch();
+      await handleConsult({
+        env,
+        toolName: "oracle_ask",
+        input: { question: "q" },
+        payment: { x402Version: 2, accepted: pr.accepts[0], resource: bad, extensions: { other: 1 } },
+        transport: "http",
+        fetchImpl,
+      });
+      const settle = calls.find((c) => c.url.endsWith("/settle"))!;
+      expect(settle.body.paymentPayload.resource).toEqual(pr.resource);
+      expect(settle.body.paymentPayload.extensions).toEqual({ other: 1, bazaar: pr.extensions.bazaar });
+    }
   });
 
   it("keeps a rejection reported only on verify", async () => {
