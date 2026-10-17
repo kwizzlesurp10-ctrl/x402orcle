@@ -35,6 +35,20 @@ export {
   jsonLd,
 } from "./discovery.js";
 export { buildDemoPaymentPayload, demoVerify, demoPayerFromPayload } from "./demo-payment.js";
-export { handleConsult, facilitatorVerifyThenSettle, type ConsultResult } from "./http.js";
+export {
+  handleConsult,
+  facilitatorVerify,
+  facilitatorSettle,
+  facilitatorVerifyThenSettle,
+  type ConsultResult,
+} from "./http.js";
+export {
+  handleA2aJsonRpc,
+  getA2aTask,
+  clearA2aTasksForTests,
+  a2aEndpointUrl,
+  type A2aTask,
+} from "./a2a.js";
+export { validateConsultInput, isPaidConsultTool } from "./validate-input.js";
 export { generateCdpJwt, cdpAuthHeaders } from "./cdp-jwt.js";
 export { landingHtml, landingConsultCopy, LANDING_ASK_BODY } from "./landing.js";

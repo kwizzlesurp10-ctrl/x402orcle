@@ -12,6 +12,8 @@ import {
   buildPaymentRequired,
   demoPayerFromPayload,
   handleConsult,
+  handleA2aJsonRpc,
+  isPaidConsultTool,
   funding,
   wellKnownX402,
   mcpJson,
@@ -138,15 +140,18 @@ export function createOracleApp(env: OracleEnv): Express {
 
   const consultHandler = async (req: Request, res: Response) => {
     const toolName = String(req.params.tool || "");
-    const input = (req.method === "GET" ? (req.query as Record<string, unknown>) : (req.body ?? {})) as Record<
-      string,
-      unknown
-    >;
+    const payment = paymentFromReq(req);
+    const input =
+      isPaidConsultTool(toolName) && !payment
+        ? ({} as Record<string, unknown>)
+        : ((req.method === "GET"
+            ? (req.query as Record<string, unknown>)
+            : (req.body ?? {})) as Record<string, unknown>);
     const result = await runPaid({
       env,
       toolName,
       input,
-      payment: paymentFromReq(req),
+      payment,
       transport: "http",
     });
     if (result.headers) {
@@ -157,6 +162,19 @@ export function createOracleApp(env: OracleEnv): Express {
 
   app.get("/api/consult/:tool", consultHandler);
   app.post("/api/consult/:tool", consultHandler);
+
+  app.post("/a2a", async (req, res) => {
+    const result = await handleA2aJsonRpc({
+      env,
+      body: req.body as {
+        jsonrpc?: string;
+        id?: unknown;
+        method?: string;
+        params?: Record<string, unknown>;
+      },
+    });
+    res.status(result.status).json(result.body);
+  });
 
   app.post("/mcp", async (req, res) => {
     const body = req.body as {

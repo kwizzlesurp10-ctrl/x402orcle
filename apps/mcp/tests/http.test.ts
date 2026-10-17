@@ -32,6 +32,34 @@ describe("oracle http", () => {
     expect(res.body.resource.url).toContain("/api/consult/oracle_ask");
   });
 
+  it("unpaid empty-body POST is 402 for every paid consult", async () => {
+    for (const tool of ["oracle_ask", "oracle_diagnose_402", "oracle_review_mcp", "oracle_bazaar_rewrite", "complete_oracle_task"]) {
+      const res = await request(app).post(`/api/consult/${tool}`).set("Content-Type", "application/json");
+      expect(res.status).toBe(402);
+      expect(res.headers["payment-required"]).toBeTruthy();
+    }
+  });
+
+  it("a2a message/send unpaid returns payment-required task", async () => {
+    const res = await request(app)
+      .post("/a2a")
+      .send({
+        jsonrpc: "2.0",
+        id: 9,
+        method: "message/send",
+        params: {
+          message: {
+            role: "user",
+            parts: [],
+            metadata: { skillId: "oracle_ask", input: { question: "mcp?" } },
+          },
+        },
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.result.status.state).toBe("input-required");
+    expect(res.body.result.status.message.metadata["x402.payment.required"]).toBeTruthy();
+  });
+
   it("demo payment returns wisdom envelope + receipt", async () => {
     const mint = await request(app).post("/v1/demo/mint-payment").send({ tool: "oracle_ask" });
     expect(mint.status).toBe(200);
