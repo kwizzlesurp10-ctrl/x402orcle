@@ -36,6 +36,16 @@ export type FacilitatorVerifyResult = {
  * copy them from our own advertised challenge (never overwriting buyer data).
  * Returns a copy; the buyer's decoded header object is not mutated.
  */
+/** Settle outcome wins; fall back to what verify reported; else not_reported. */
+export function preferIndexing(
+  settle: BazaarIndexingStatus | undefined,
+  verify: BazaarIndexingStatus | undefined,
+): BazaarIndexingStatus {
+  if (settle && settle.status !== "not_reported") return settle;
+  if (verify && verify.status !== "not_reported") return { ...verify, source: `verify:${verify.source}` };
+  return settle ?? { status: "not_reported", source: "none" };
+}
+
 export function withDiscoveryBackfill(
   payment: unknown,
   pr: ReturnType<typeof buildPaymentRequired>,
@@ -98,11 +108,22 @@ async function verifyAt(opts: {
     isValid?: boolean;
     payer?: string;
     invalidReason?: string;
+    extensions?: Record<string, unknown>;
   };
+  // Facilitators may report the Bazaar outcome on verify, settle, or both.
+  const bazaarIndexing = bazaarIndexingStatus({
+    extensionResponsesHeader: verifyRes.headers?.get?.("EXTENSION-RESPONSES") ?? null,
+    responseBody: verifyJson,
+  });
   if (!verifyJson.isValid) {
-    return { ok: false, payer: verifyJson.payer, reason: verifyJson.invalidReason || "INVALID_PAYMENT" };
+    return {
+      ok: false,
+      payer: verifyJson.payer,
+      reason: verifyJson.invalidReason || "INVALID_PAYMENT",
+      bazaarIndexing,
+    };
   }
-  return { ok: true, payer: verifyJson.payer };
+  return { ok: true, payer: verifyJson.payer, bazaarIndexing };
 }
 
 async function settleAt(opts: {
@@ -141,7 +162,7 @@ async function settleAt(opts: {
   };
   const bazaarIndexing = bazaarIndexingStatus({
     extensionResponsesHeader: settleRes.headers?.get?.("EXTENSION-RESPONSES") ?? null,
-    settleBody: settleJson,
+    responseBody: settleJson,
   });
   if (!settleJson.success) {
     return { ok: false, reason: "FACILITATOR_SETTLE_FAILED", bazaarIndexing };
@@ -169,7 +190,7 @@ async function verifyThenSettleAt(opts: {
     ok: true,
     payer: settled.payer || verified.payer,
     transaction: settled.transaction,
-    bazaarIndexing: settled.bazaarIndexing,
+    bazaarIndexing: preferIndexing(settled.bazaarIndexing, verified.bazaarIndexing),
   };
 }
 
@@ -380,10 +401,7 @@ export async function handleConsult(opts: {
       requirements: pr.accepts[0]!,
       fetchImpl: opts.fetchImpl,
     });
-    const bazaarIndexing: BazaarIndexingStatus = settled.bazaarIndexing ?? {
-      status: "not_reported",
-      source: "none",
-    };
+    const bazaarIndexing = preferIndexing(settled.bazaarIndexing, verified.bazaarIndexing);
     console.log(
       bazaarIndexingLogLine({
         service: "x402orcle",

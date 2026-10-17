@@ -92,7 +92,7 @@ describe("bazaar discovery backfill before settle", () => {
     expect(receipt.bazaarIndexing).toEqual({
       status: "rejected",
       rejectedReason: "info failed schema validation",
-      source: "settle-body",
+      source: "response-body",
     });
     expect(receipt.discoveryBackfilled).toEqual({ resource: false, bazaar: false });
   });
@@ -121,9 +121,77 @@ describe("bazaar discovery backfill before settle", () => {
     expect(
       bazaarIndexingStatus({
         extensionResponsesHeader: b64({ bazaar: { status: "success" } }),
-        settleBody: { extensions: { bazaar: { status: "rejected" } } },
+        responseBody: { extensions: { bazaar: { status: "rejected" } } },
       }).status,
     ).toBe("success");
+  });
+});
+
+describe("backfill safety and verify-reported status", () => {
+  it("does not attach our bazaar declaration to a buyer-supplied foreign resource url", async () => {
+    const env = liveEnv();
+    const pr = buildPaymentRequired({ env, tool: requireTool("oracle_ask"), priceUsd: 0.1 });
+    const { fetchImpl, calls } = recordingFetch();
+    const res = await handleConsult({
+      env,
+      toolName: "oracle_ask",
+      input: { question: "q" },
+      payment: { x402Version: 2, accepted: pr.accepts[0], resource: { url: "https://attacker.example/x" } },
+      transport: "http",
+      fetchImpl,
+    });
+    const settle = calls.find((c) => c.url.endsWith("/settle"))!;
+    expect(settle.body.paymentPayload.resource).toEqual({ url: "https://attacker.example/x" });
+    expect(settle.body.paymentPayload.extensions).toBeUndefined();
+    expect((res.body as { receipt: Record<string, unknown> }).receipt.discoveryBackfilled).toEqual({
+      resource: false,
+      bazaar: false,
+    });
+  });
+
+  it("attaches bazaar when the buyer echoed our own resource url (query ignored)", () => {
+    const env = liveEnv();
+    const pr = buildPaymentRequired({ env, tool: requireTool("oracle_ask"), priceUsd: 0.1 });
+    const p: Record<string, unknown> = { resource: { url: `${pr.resource.url}?x=1` } };
+    expect(backfillDiscovery(p, { resource: pr.resource, bazaar: pr.extensions.bazaar })).toEqual({
+      resource: false,
+      bazaar: true,
+    });
+  });
+
+  it("keeps a rejection reported only on verify", async () => {
+    const env = liveEnv();
+    const calls: string[] = [];
+    const fetchImpl = (async (url: string | URL) => {
+      const u = String(url);
+      calls.push(u);
+      if (u.endsWith("/verify")) {
+        return new Response(JSON.stringify({ isValid: true, payer: "0xabc" }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "EXTENSION-RESPONSES": b64({ bazaar: { status: "rejected", rejectedReason: "bad schema" } }),
+          },
+        });
+      }
+      return new Response(JSON.stringify({ success: true, payer: "0xabc", transaction: "0xtx" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    const res = await handleConsult({
+      env,
+      toolName: "oracle_ask",
+      input: { question: "q" },
+      payment: { x402Version: 2 },
+      transport: "http",
+      fetchImpl,
+    });
+    expect((res.body as { receipt: Record<string, unknown> }).receipt.bazaarIndexing).toEqual({
+      status: "rejected",
+      rejectedReason: "bad schema",
+      source: "verify:extension-responses-header",
+    });
   });
 });
 

@@ -44,10 +44,25 @@ function hasAbsoluteUrl(resource: unknown): boolean {
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(resource.url);
 }
 
+const ABSOLUTE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/** Same resource = same origin + path (query/fragment ignored). */
+export function sameResource(a: string, b: string): boolean {
+  try {
+    const x = new URL(a);
+    const y = new URL(b);
+    return x.protocol === y.protocol && x.host === y.host && x.pathname.replace(/\/+$/, "") === y.pathname.replace(/\/+$/, "");
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Mutates `payload` in place: sets `resource` when the buyer left it out (or
  * sent it without an absolute URL) and `extensions.bazaar` when missing.
- * Buyer-supplied values are never replaced.
+ * Buyer-supplied values are never replaced, and our bazaar declaration is only
+ * attached when the payload's resource is this route's own advertised URL, so
+ * a buyer cannot get our discovery metadata cataloged under a foreign URL.
  */
 export function backfillDiscovery(
   payload: PayloadLike,
@@ -55,7 +70,8 @@ export function backfillDiscovery(
 ): BackfillResult {
   const out: BackfillResult = { resource: false, bazaar: false };
   const res = advertised.resource;
-  if (res && /^[a-z][a-z0-9+.-]*:\/\//i.test(res.url) && !hasAbsoluteUrl(payload.resource)) {
+  if (!res || !ABSOLUTE.test(res.url)) return out;
+  if (!hasAbsoluteUrl(payload.resource)) {
     const clean: ResourceInfoLike = { url: res.url };
     if (res.description) clean.description = res.description;
     if (res.mimeType) clean.mimeType = res.mimeType;
@@ -64,6 +80,8 @@ export function backfillDiscovery(
     payload.resource = clean;
     out.resource = true;
   }
+  const payloadUrl = (payload.resource as { url: string }).url;
+  if (!sameResource(payloadUrl, res.url)) return out;
   const exts = isObj(payload.extensions) ? payload.extensions : {};
   if (advertised.bazaar !== undefined && advertised.bazaar !== null && !isObj(exts[BAZAAR_KEY])) {
     payload.extensions = { ...exts, [BAZAAR_KEY]: structuredClone(advertised.bazaar) };
@@ -76,7 +94,7 @@ export type BazaarIndexingStatus = {
   /** success | processing | rejected as reported by the facilitator; not_reported when absent. */
   status: "success" | "processing" | "rejected" | "not_reported" | string;
   rejectedReason?: string;
-  source: "extension-responses-header" | "settle-body" | "none";
+  source: "extension-responses-header" | "response-body" | "none" | `verify:${string}`;
 };
 
 export function decodeExtensionResponses(header: string | null | undefined): Record<string, unknown> | null {
@@ -100,12 +118,12 @@ function pick(v: unknown, source: BazaarIndexingStatus["source"]): BazaarIndexin
 
 export function bazaarIndexingStatus(opts: {
   extensionResponsesHeader?: string | null;
-  settleBody?: unknown;
+  responseBody?: unknown;
 }): BazaarIndexingStatus {
   const fromHeader = pick(decodeExtensionResponses(opts.extensionResponsesHeader)?.[BAZAAR_KEY], "extension-responses-header");
   if (fromHeader) return fromHeader;
-  const body = isObj(opts.settleBody) ? opts.settleBody : {};
-  const fromBody = pick(isObj(body.extensions) ? body.extensions[BAZAAR_KEY] : undefined, "settle-body");
+  const body = isObj(opts.responseBody) ? opts.responseBody : {};
+  const fromBody = pick(isObj(body.extensions) ? body.extensions[BAZAAR_KEY] : undefined, "response-body");
   if (fromBody) return fromBody;
   return { status: "not_reported", source: "none" };
 }
