@@ -105,6 +105,28 @@ describe("oracle http", () => {
     expect(res.text).toContain("/v1/demo/mint-payment");
   });
 
+  it("serves OpenAPI document with contact email, security: [], and FundingResponse schema (R1, R2, R3)", async () => {
+    const res = await request(app).get("/openapi.json");
+    expect(res.status).toBe(200);
+    expect(res.body.info.contact.email).toBe("kwizzlesurp10@gmail.com");
+    expect(res.body.paths["/api/health"].get.security).toEqual([]);
+    expect(res.body.paths["/api/pricing"].get.security).toEqual([]);
+    expect(res.body.paths["/.well-known/funding.json"].get.security).toEqual([]);
+    expect(res.body.components.schemas.FundingResponse).toBeDefined();
+    expect(
+      res.body.paths["/.well-known/funding.json"].get.responses["200"].content["application/json"].schema.$ref,
+    ).toBe("#/components/schemas/FundingResponse");
+  });
+
+  it("serves /.well-known/funding.json matching FundingResponse schema without auth", async () => {
+    const res = await request(app).get("/.well-known/funding.json");
+    expect(res.status).toBe(200);
+    expect(res.body.schema_version).toBe("1.0");
+    expect(res.body.payTo).toBe(env.payTo);
+    expect(res.body.machineCashier.protocol).toBe("x402");
+    expect(res.body.discovery.openapi).toBeTruthy();
+  });
+
   it("https public host refuses demo mint", async () => {
     const liveEnv = loadEnv({
       X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
