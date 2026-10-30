@@ -194,6 +194,72 @@ describe("discovery surfaces", () => {
     expect(full).toContain("Wisdom Envelope Format");
     expect(full).toContain("oracle_ask");
   });
+
+  it("publishes contact email in OpenAPI info for Poncho verification (R1)", () => {
+    const spec = openApi(env) as {
+      info: {
+        contact?: { email?: string };
+      };
+    };
+    expect(spec.info.contact).toBeDefined();
+    expect(spec.info.contact?.email).toBe("kwizzlesurp10@gmail.com");
+  });
+
+  it("declares security: [] for free endpoints and x402Payment for paid endpoints (R2)", () => {
+    const spec = openApi(env) as {
+      paths: Record<
+        string,
+        {
+          get?: { security?: unknown[] };
+          post?: { security?: unknown[] };
+        }
+      >;
+    };
+    expect(spec.paths["/api/health"]?.get?.security).toEqual([]);
+    expect(spec.paths["/api/pricing"]?.get?.security).toEqual([]);
+    expect(spec.paths["/.well-known/funding.json"]?.get?.security).toEqual([]);
+    expect(spec.paths["/api/consult/oracle_ask"]?.post?.security).toEqual([{ x402Payment: [] }]);
+  });
+
+  it("defines FundingResponse schema and maps /.well-known/funding.json 200 response (R3)", () => {
+    const spec = openApi(env) as {
+      paths: Record<
+        string,
+        {
+          get?: {
+            responses?: Record<
+              string,
+              {
+                content?: Record<string, { schema?: { $ref?: string } }>;
+              }
+            >;
+          };
+        }
+      >;
+      components: {
+        schemas: Record<string, { type?: string; required?: string[]; properties?: Record<string, unknown> }>;
+      };
+    };
+    expect(
+      spec.paths["/.well-known/funding.json"]?.get?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
+    ).toBe("#/components/schemas/FundingResponse");
+    const schema = spec.components.schemas.FundingResponse;
+    expect(schema).toBeDefined();
+    expect(schema.type).toBe("object");
+    expect(schema.required).toEqual(
+      expect.arrayContaining([
+        "schema_version",
+        "network",
+        "chainId",
+        "asset",
+        "assetSymbol",
+        "payTo",
+        "machineCashier",
+        "discovery",
+        "legal",
+      ]),
+    );
+  });
 });
 
 describe("landing consult copy", () => {
