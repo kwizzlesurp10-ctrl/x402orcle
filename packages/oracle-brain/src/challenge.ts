@@ -97,6 +97,17 @@ export function encodePaymentRequired(pr: PaymentRequired): string {
   return Buffer.from(JSON.stringify(pr), "utf8").toString("base64");
 }
 
+/** x402 payment headers only. Authorization is an operator or API token, never a payment. */
+const PAYMENT_HEADER_NAMES = ["payment-signature", "x-payment", "payment"] as const;
+
+export function readPaymentHeader(headers: { get(name: string): string | null }): string {
+  for (const name of PAYMENT_HEADER_NAMES) {
+    const value = headers.get(name);
+    if (value) return value;
+  }
+  return "";
+}
+
 export function decodePaymentHeader(header: string | undefined): unknown | null {
   if (!header) return null;
   try {

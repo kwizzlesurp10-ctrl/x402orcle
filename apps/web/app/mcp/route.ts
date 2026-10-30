@@ -7,6 +7,7 @@ import {
   ORACLE_CONNECT_HOWTO,
   mcpJson,
   decodePaymentHeader,
+  readPaymentHeader,
 } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../lib/env";
 
@@ -125,13 +126,7 @@ export async function POST(req: NextRequest) {
         },
       );
     }
-    const paymentHeader =
-      req.headers.get("payment-signature") ||
-      req.headers.get("PAYMENT-SIGNATURE") ||
-      req.headers.get("Payment-Signature") ||
-      req.headers.get("x-payment") ||
-      req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-      "";
+    const paymentHeader = readPaymentHeader(req.headers);
     const payment =
       body.params?._meta?.["x402/payment"] ??
       (paymentHeader ? decodePaymentHeader(paymentHeader) : null);

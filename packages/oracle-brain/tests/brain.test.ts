@@ -6,6 +6,7 @@ import {
   requireTool,
   buildPaymentRequired,
   encodePaymentRequired,
+  readPaymentHeader,
   wellKnownX402,
   agentCard,
   llmsTxt,
@@ -20,6 +21,7 @@ import {
   generateCdpJwt,
   cdpAuthHeaders,
   validateToolInput,
+  handleConsult,
 } from "../src/index.js";
 
 const env = loadEnv({
@@ -124,6 +126,16 @@ describe("402 challenge", () => {
     const b64 = encodePaymentRequired(pr);
     expect(JSON.parse(Buffer.from(b64, "base64").toString("utf8")).error).toBe("PAYMENT_REQUIRED");
   });
+
+  it("reads payment signature headers and ignores Authorization", () => {
+    const paid = new Headers({
+      Authorization: "Bearer operator-token",
+      "payment-signature": "cGF5bWVudA==",
+    });
+    expect(readPaymentHeader(paid)).toBe("cGF5bWVudA==");
+    expect(readPaymentHeader(new Headers({ Authorization: "Bearer operator-token" }))).toBe("");
+    expect(readPaymentHeader(new Headers({ "X-PAYMENT": "abc" }))).toBe("abc");
+  });
 });
 
 describe("consult envelope", () => {
@@ -182,6 +194,7 @@ describe("discovery surfaces", () => {
         WisdomEnvelope: expect.any(Object),
         PaymentRequired: expect.any(Object),
         PaymentResponse: expect.any(Object),
+        FundingResponse: expect.any(Object),
         ErrorResponse: expect.any(Object),
       }),
     );
@@ -191,6 +204,112 @@ describe("discovery surfaces", () => {
     expect(wellKnownX402(withSwarm).discovery.swarm).toBe("https://swarm.example");
     expect(agentCard(withSwarm).swarmUrl).toBe("https://swarm.example");
     expect(llmsTxt(withSwarm)).toContain("https://swarm.example");
+  });
+
+  it("publishes contact email in OpenAPI info for Poncho verification (R1)", () => {
+    const spec = openApi(env) as {
+      info: {
+        contact?: { email?: string };
+      };
+    };
+    expect(spec.info.contact).toBeDefined();
+    expect(spec.info.contact?.email).toBe("kwizzlesurp10@gmail.com");
+  });
+
+  it("declares security: [] for free endpoints and x402Payment for paid endpoints (R2)", () => {
+    const spec = openApi(env) as {
+      paths: Record<
+        string,
+        {
+          get?: { security?: unknown[] };
+          post?: { security?: unknown[] };
+        }
+      >;
+    };
+    expect(spec.paths["/api/health"]?.get?.security).toEqual([]);
+    expect(spec.paths["/api/pricing"]?.get?.security).toEqual([]);
+    expect(spec.paths["/.well-known/funding.json"]?.get?.security).toEqual([]);
+    expect(spec.paths["/api/consult/oracle_ask"]?.post?.security).toEqual([{ x402Payment: [] }]);
+    expect(spec.paths["/api/consult/oracle_diagnose_402"]?.post?.security).toEqual([{ x402Payment: [] }]);
+  });
+
+  it("defines FundingResponse schema and maps /.well-known/funding.json 200 response (R3)", () => {
+    const spec = openApi(env) as {
+      paths: Record<
+        string,
+        {
+          get?: {
+            responses?: Record<
+              string,
+              {
+                content?: Record<string, { schema?: { $ref?: string } }>;
+              }
+            >;
+          };
+        }
+      >;
+      components: {
+        schemas: Record<string, { type?: string; required?: string[]; properties?: Record<string, unknown> }>;
+      };
+    };
+    expect(
+      spec.paths["/.well-known/funding.json"]?.get?.responses?.["200"]?.content?.["application/json"]?.schema?.$ref,
+    ).toBe("#/components/schemas/FundingResponse");
+    const schema = spec.components.schemas.FundingResponse;
+    expect(schema).toBeDefined();
+    expect(schema.type).toBe("object");
+    expect(schema.required).toEqual(
+      expect.arrayContaining([
+        "schema_version",
+        "network",
+        "chainId",
+        "asset",
+        "assetSymbol",
+        "payTo",
+        "machineCashier",
+        "discovery",
+        "legal",
+      ]),
+    );
+  });
+
+  it("ensures all required query parameters declare required: true across all operations (R3)", () => {
+    const spec = openApi(env) as {
+      paths: Record<string, Record<string, { parameters?: Array<{ name: string; in: string; required?: boolean }> }>>;
+    };
+    for (const operations of Object.values(spec.paths)) {
+      for (const op of Object.values(operations)) {
+        if (op?.parameters && Array.isArray(op.parameters)) {
+          for (const param of op.parameters) {
+            if (param.in === "query" && param.required !== undefined) {
+              expect(param.required).toBe(true);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("unauthenticated probe to paid consult endpoint returns 402 with empty body (R3 validation order)", async () => {
+    const emptyProbeRes = await handleConsult({
+      env,
+      toolName: "oracle_ask",
+      input: {}, // Empty body / probe payload
+      payment: null, // Unauthenticated probe
+      transport: "http",
+      execution: "execute",
+    });
+    expect(emptyProbeRes.status).toBe(402);
+    expect(emptyProbeRes.headers?.["PAYMENT-REQUIRED"]).toBeTruthy();
+    expect(emptyProbeRes.headers?.["WWW-Authenticate"]).toContain("x402");
+    const body = emptyProbeRes.body as {
+      x402Version?: number;
+      error?: string;
+      accepts?: unknown[];
+    };
+    expect(body.x402Version).toBe(2);
+    expect(body.error).toBe("PAYMENT_REQUIRED");
+    expect(body.accepts?.length).toBeGreaterThan(0);
   });
 
   it("well-known x402 lists every paid tool", () => {

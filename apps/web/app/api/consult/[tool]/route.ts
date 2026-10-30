@@ -1,36 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleConsult, decodePaymentHeader } from "@x402orcle/oracle-brain";
+import { handleConsult, decodePaymentHeader, readPaymentHeader } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../../../lib/env";
 
 export const dynamic = "force-dynamic";
 
 async function consult(req: NextRequest, tool: string, execution: "challenge" | "execute") {
   const env = oracleEnv();
-  const paymentHeader =
-    req.headers.get("payment-signature") ||
-    req.headers.get("PAYMENT-SIGNATURE") ||
-    req.headers.get("Payment-Signature") ||
-    req.headers.get("payment") ||
-    req.headers.get("Payment") ||
-    req.headers.get("x-payment") ||
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ||
-    "";
+  const paymentHeader = readPaymentHeader(req.headers);
   let input: Record<string, unknown> = {};
   if (execution === "execute") {
     try {
-      const body: unknown = await req.json();
-      if (!body || typeof body !== "object" || Array.isArray(body)) {
+      const text = await req.text();
+      if (text && text.trim().length > 0) {
+        const body: unknown = JSON.parse(text);
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+          if (paymentHeader) {
+            return NextResponse.json(
+              { code: "INVALID_REQUEST", message: "Request body must be a JSON object" },
+              { status: 400 },
+            );
+          }
+        } else {
+          input = body as Record<string, unknown>;
+        }
+      }
+    } catch {
+      if (paymentHeader) {
         return NextResponse.json(
-          { code: "INVALID_REQUEST", message: "Request body must be a JSON object" },
+          { code: "INVALID_REQUEST", message: "Request body must be valid JSON" },
           { status: 400 },
         );
       }
-      input = body as Record<string, unknown>;
-    } catch {
-      return NextResponse.json(
-        { code: "INVALID_REQUEST", message: "Request body must be valid JSON" },
-        { status: 400 },
-      );
     }
   }
   const payment = paymentHeader ? decodePaymentHeader(paymentHeader) : (input.payment as unknown) ?? null;

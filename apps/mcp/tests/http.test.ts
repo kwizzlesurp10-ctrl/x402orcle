@@ -32,9 +32,21 @@ describe("oracle http", () => {
     expect(res.body.resource.url).toContain("/api/consult/oracle_ask");
   });
 
-  it("validates POST before payment and returns typed 400/404 errors", async () => {
+  it("unauthenticated probe with empty body returns 402 challenge before body validation (R3)", async () => {
+    const emptyProbe = await request(app)
+      .post("/api/consult/oracle_ask")
+      .send({});
+    expect(emptyProbe.status).toBe(402);
+    expect(emptyProbe.headers["payment-required"]).toBeTruthy();
+    expect(emptyProbe.body.x402Version).toBe(2);
+    expect(emptyProbe.body.error).toBe("PAYMENT_REQUIRED");
+  });
+
+  it("validates POST input when paid and returns typed 400/404 errors", async () => {
+    const mint = await request(app).post("/v1/demo/mint-payment").send({ tool: "oracle_ask" });
     const invalid = await request(app)
       .post("/api/consult/oracle_ask")
+      .set("PAYMENT-SIGNATURE", mint.body.payment_signature_header)
       .send({ audience: "agent" });
     expect(invalid.status).toBe(400);
     expect(invalid.body.code).toBe("INVALID_REQUEST");
@@ -131,6 +143,28 @@ describe("oracle http", () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain("API Documentation");
     expect(res.text).toContain("scalar");
+  });
+
+  it("serves OpenAPI document with contact email, security: [], and FundingResponse schema (R1, R2, R3)", async () => {
+    const res = await request(app).get("/openapi.json");
+    expect(res.status).toBe(200);
+    expect(res.body.info.contact.email).toBe("kwizzlesurp10@gmail.com");
+    expect(res.body.paths["/api/health"].get.security).toEqual([]);
+    expect(res.body.paths["/api/pricing"].get.security).toEqual([]);
+    expect(res.body.paths["/.well-known/funding.json"].get.security).toEqual([]);
+    expect(res.body.components.schemas.FundingResponse).toBeDefined();
+    expect(
+      res.body.paths["/.well-known/funding.json"].get.responses["200"].content["application/json"].schema.$ref,
+    ).toBe("#/components/schemas/FundingResponse");
+  });
+
+  it("serves /.well-known/funding.json matching FundingResponse schema without auth", async () => {
+    const res = await request(app).get("/.well-known/funding.json");
+    expect(res.status).toBe(200);
+    expect(res.body.schema_version).toBe("1.0");
+    expect(res.body.payTo).toBe(env.payTo);
+    expect(res.body.machineCashier.protocol).toBe("x402");
+    expect(res.body.discovery.openapi).toBeTruthy();
   });
 
   it("exposes mcp-parity ops surfaces", async () => {

@@ -30,11 +30,13 @@ export {
 export { gatePaidTool, refuseKeyRequestMessage } from "./policy.js";
 export { envelope, WisdomEnvelopeSchema, type WisdomEnvelope } from "./envelope.js";
 export { ORACLE_SYSTEM_PROMPT, ORACLE_CONNECT_HOWTO } from "./persona.js";
+export { connectDocument, type ConnectDocument } from "./connect.js";
 export { fallbackConsult, maybeLlmConsult, requireTool } from "./consult.js";
 export {
   buildPaymentRequired,
   encodePaymentRequired,
   decodePaymentHeader,
+  readPaymentHeader,
   buildAccept,
   bazaarForTool,
   paidCatalogRequired,

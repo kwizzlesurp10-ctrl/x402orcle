@@ -413,7 +413,9 @@ export function openApi(env: OracleEnv) {
         : {}),
       operationId: t.name,
       tags: t.tags,
-      ...(paid ? { "x-payment-info": paymentInfo, security: [{ x402Payment: [] }] } : {}),
+      ...(paid
+        ? { "x-payment-info": paymentInfo, security: [{ x402Payment: [] }] }
+        : { security: [] }),
       responses: {
         ...(paid
           ? {
@@ -501,7 +503,22 @@ export function openApi(env: OracleEnv) {
     }
   }
   paths["/.well-known/funding.json"] = {
-    get: { summary: "Canonical payTo", responses: { "200": { description: "funding" } } },
+    get: {
+      summary: "Canonical payTo and machine cashier manifest",
+      operationId: "funding_manifest",
+      tags: ["funding"],
+      security: [],
+      responses: {
+        "200": {
+          description: "Canonical payTo and Base USDC settlement configuration",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FundingResponse" },
+            },
+          },
+        },
+      },
+    },
   };
   return {
     openapi: "3.1.0",
@@ -509,6 +526,9 @@ export function openApi(env: OracleEnv) {
       title: SERVICE.name,
       version: SERVICE.version,
       description: SERVICE.thesis,
+      contact: {
+        email: "kwizzlesurp10@gmail.com",
+      },
       ...(env.swarmPublicUrl ? { "x-swarm-url": env.swarmPublicUrl } : {}),
       "x-guidance":
         "Free GET /api/health and /api/pricing. Paid consults: POST /api/consult/oracle_ask with JSON {question}. Unpaid probes return HTTP 402 and PAYMENT-REQUIRED (x402 v2, Base USDC). After payment, retry with PAYMENT-SIGNATURE. MCP streamable HTTP at /mcp. No private keys.",
@@ -524,6 +544,7 @@ export function openApi(env: OracleEnv) {
       { name: "pricing", description: "Pricing menu and connection instructions" },
       { name: "oracle", description: "Paid expert consultation tools" },
       { name: "a2a", description: "Autonomous outcome-driven tasks" },
+      { name: "funding", description: "Machine cashier manifest and canonical payTo configuration" },
     ],
     components: {
       securitySchemes: {
@@ -657,6 +678,65 @@ export function openApi(env: OracleEnv) {
             payTo: { type: "string" },
             free: { type: "array", items: { type: "object" } },
             paid: { type: "array", items: { type: "object" } },
+          },
+        },
+        FundingResponse: {
+          type: "object",
+          required: [
+            "schema_version",
+            "network",
+            "chainId",
+            "asset",
+            "assetSymbol",
+            "payTo",
+            "explorer",
+            "machineCashier",
+            "discovery",
+            "legal",
+          ],
+          properties: {
+            schema_version: { type: "string" },
+            network: { type: "string" },
+            chainId: { type: "integer" },
+            asset: { type: "string" },
+            assetSymbol: { type: "string" },
+            payTo: { type: "string" },
+            explorer: { type: "string", format: "uri" },
+            machineCashier: {
+              type: "object",
+              required: ["protocol", "challengeHeader", "paymentHeader", "catalog"],
+              properties: {
+                protocol: { type: "string" },
+                challengeHeader: { type: "string" },
+                paymentHeader: { type: "string" },
+                catalog: { type: "string", format: "uri" },
+              },
+            },
+            discovery: {
+              type: "object",
+              required: [
+                "agentCard",
+                "agentsJson",
+                "x402",
+                "mcp",
+                "llmsTxt",
+                "llmsFullTxt",
+                "agentsTxt",
+                "openapi",
+              ],
+              properties: {
+                agentCard: { type: "string", format: "uri" },
+                agentsJson: { type: "string", format: "uri" },
+                x402: { type: "string", format: "uri" },
+                mcp: { type: "string", format: "uri" },
+                llmsTxt: { type: "string", format: "uri" },
+                llmsFullTxt: { type: "string", format: "uri" },
+                agentsTxt: { type: "string", format: "uri" },
+                openapi: { type: "string", format: "uri" },
+                swarm: { type: "string", format: "uri" },
+              },
+            },
+            legal: { type: "string" },
           },
         },
       },

@@ -203,7 +203,7 @@ export async function handleConsult(opts: {
     transport: opts.transport,
   });
   const wwwAuthHeader = `x402 scheme="exact", network="${opts.env.network}", payTo="${opts.env.payTo}"`;
-  if (opts.execution === "challenge") {
+  if (opts.execution === "challenge" || !opts.payment) {
     recordChallenge(tool.name);
     return {
       status: 402,
@@ -238,18 +238,6 @@ export async function handleConsult(opts: {
   });
   if (!gate.ok) {
     return { status: 400, body: { code: gate.code, message: gate.message } };
-  }
-  if (!opts.payment) {
-    recordChallenge(tool.name);
-    return {
-      status: 402,
-      headers: {
-        "PAYMENT-REQUIRED": encodePaymentRequired(pr),
-        "WWW-Authenticate": wwwAuthHeader,
-        "Cache-Control": "no-store",
-      },
-      body: pr,
-    };
   }
   if (tool.tier === "paid") {
     if (opts.env.demoMode) {

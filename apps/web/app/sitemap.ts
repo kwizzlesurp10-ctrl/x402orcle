@@ -23,6 +23,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/api/pricing`, lastModified: now, changeFrequency: "hourly", priority: 0.7 },
     { url: `${baseUrl}/api/health`, lastModified: now, changeFrequency: "hourly", priority: 0.6 },
     { url: `${baseUrl}/health`, lastModified: now, changeFrequency: "hourly", priority: 0.6 },
+    { url: `${baseUrl}/connect`, lastModified: now, changeFrequency: "hourly", priority: 0.7 },
   ];
 
   for (const tool of PAID_TOOLS) {
