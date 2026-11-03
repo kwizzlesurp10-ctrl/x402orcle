@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { clampPrice, requireTool } from "./catalog.js";
+import { clampPrice, FREE_TOOLS, PAID_TOOLS, requireTool, SERVICE } from "./catalog.js";
 import { gatePaidTool } from "./policy.js";
 import { maybeLlmConsult } from "./consult.js";
 import { buildPaymentRequired, encodePaymentRequired, type PaymentAccept } from "./challenge.js";
@@ -7,6 +7,7 @@ import type { OracleEnv } from "./env.js";
 import { demoVerify } from "./demo-payment.js";
 import { cdpAuthHeaders } from "./cdp-jwt.js";
 import { validateConsultInput } from "./validate-input.js";
+import { ORACLE_CONNECT_HOWTO } from "./persona.js";
 import {
   backfillDiscovery,
   bazaarIndexingLogLine,
@@ -275,6 +276,40 @@ export async function facilitatorVerifyThenSettle(opts: {
   return last;
 }
 
+function freeConsultBody(tool: ReturnType<typeof requireTool>, env: OracleEnv): Record<string, unknown> {
+  if (tool.name === "oracle_health") {
+    return {
+      ok: true,
+      service: SERVICE.name,
+      slug: SERVICE.slug,
+      version: SERVICE.version,
+      wallet_configured: false,
+      pay_to_configured: Boolean(env.payTo),
+      cdp_auth_configured: Boolean(env.cdpApiKeyId && env.cdpApiKeySecret),
+      seller_leak_warning: env.sellerLeakWarning,
+      demoMode: env.demoMode,
+      network: env.network,
+      thesis: SERVICE.thesis,
+    };
+  }
+  if (tool.name === "oracle_pricing") {
+    return {
+      maxPriceUsd: env.maxPriceUsd,
+      network: env.network,
+      payTo: env.payTo,
+      connect: ORACLE_CONNECT_HOWTO,
+      free: FREE_TOOLS.map((t) => ({ name: t.name, path: t.httpPath })),
+      paid: PAID_TOOLS.map((t) => ({
+        name: t.name,
+        path: t.httpPath,
+        method: t.httpMethod,
+        priceUsd: clampPrice(t, undefined, env.maxPriceUsd),
+      })),
+    };
+  }
+  return { ok: true };
+}
+
 function paymentChallengeResult(pr: ReturnType<typeof buildPaymentRequired>): ConsultResult {
   return {
     status: 402,
@@ -454,5 +489,5 @@ export async function handleConsult(opts: {
   if (!gate.ok) {
     return { status: 400, body: { code: gate.code, message: gate.message } };
   }
-  return { status: 200, body: { ok: true } };
+  return { status: 200, body: freeConsultBody(tool, opts.env) };
 }

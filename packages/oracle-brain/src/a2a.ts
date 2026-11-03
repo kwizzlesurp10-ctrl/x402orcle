@@ -146,6 +146,13 @@ function completedTask(opts: {
   result: unknown;
   receipts?: unknown[];
 }): A2aTask {
+  const paymentMeta: Record<string, unknown> =
+    opts.tool.tier === "free"
+      ? { "x402.payment.status": "not-required" }
+      : {
+          "x402.payment.status": "payment-completed",
+          "x402.payment.receipts": opts.receipts ?? [],
+        };
   return {
     kind: "task",
     id: opts.taskId,
@@ -160,10 +167,7 @@ function completedTask(opts: {
         taskId: opts.taskId,
         contextId: opts.contextId,
         parts: [{ kind: "data", data: { skillId: opts.tool.name, result: opts.result } }],
-        metadata: {
-          "x402.payment.status": "payment-completed",
-          "x402.payment.receipts": opts.receipts ?? [],
-        },
+        metadata: paymentMeta,
       },
     },
     artifacts: [

@@ -82,6 +82,44 @@ describe("consult 402 before validation", () => {
   });
 });
 
+describe("free consult payloads", () => {
+  it("oracle_health returns seller posture with payment null", async () => {
+    const res = await handleConsult({
+      env,
+      toolName: "oracle_health",
+      input: {},
+      payment: null,
+      transport: "http",
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      ok: boolean;
+      pay_to_configured: boolean;
+      network: string;
+      wallet_configured: boolean;
+      seller_leak_warning: boolean;
+    };
+    expect(body.ok).toBe(true);
+    expect(body.pay_to_configured).toBe(true);
+    expect(body.network).toBe("eip155:8453");
+    expect(body.wallet_configured).toBe(false);
+    expect(body.seller_leak_warning).toBe(false);
+  });
+
+  it("oracle_pricing lists paid oracle_ask at 0.1", async () => {
+    const res = await handleConsult({
+      env,
+      toolName: "oracle_pricing",
+      input: {},
+      payment: null,
+      transport: "http",
+    });
+    expect(res.status).toBe(200);
+    const body = res.body as { paid: Array<{ name: string; priceUsd: number }> };
+    expect(body.paid.find((t) => t.name === "oracle_ask")?.priceUsd).toBe(0.1);
+  });
+});
+
 describe("a2a json-rpc", () => {
   it("message/send unpaid returns input-required task with x402 metadata", async () => {
     const res = await handleA2aJsonRpc({
@@ -128,6 +166,41 @@ describe("a2a json-rpc", () => {
     });
     expect((got.body as { result: { id: string } }).result.id).toBe(taskId);
     expect(getA2aTask(taskId)?.id).toBe(taskId);
+  });
+
+  it("message/send oracle_health completes without a payment receipt", async () => {
+    const res = await handleA2aJsonRpc({
+      env,
+      body: {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "message/send",
+        params: {
+          message: {
+            role: "user",
+            parts: [],
+            metadata: { skillId: "oracle_health" },
+          },
+        },
+      },
+    });
+    const task = (
+      res.body as {
+        result: {
+          status: {
+            state: string;
+            message: {
+              metadata: Record<string, unknown>;
+              parts: Array<{ data?: { result?: { network?: string } } }>;
+            };
+          };
+        };
+      }
+    ).result;
+    expect(task.status.state).toBe("completed");
+    expect(task.status.message.metadata["x402.payment.status"]).toBe("not-required");
+    expect(task.status.message.metadata).not.toHaveProperty("x402.payment.receipts");
+    expect(task.status.message.parts[0]?.data?.result?.network).toBe("eip155:8453");
   });
 
   it("agent card points at /a2a with supportedInterfaces", () => {
