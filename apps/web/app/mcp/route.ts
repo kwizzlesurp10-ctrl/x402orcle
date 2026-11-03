@@ -3,7 +3,10 @@ import {
   handleConsult,
   SERVICE,
   TOOLS,
+  FREE_TOOLS,
   PAID_TOOLS,
+  clampPrice,
+  getTool,
   ORACLE_CONNECT_HOWTO,
   jsonSchemaFromExample,
   mcpJson,
@@ -11,6 +14,49 @@ import {
 import { oracleEnv } from "../../lib/env";
 
 export const dynamic = "force-dynamic";
+
+function mcpHealthBody(env: ReturnType<typeof oracleEnv>) {
+  return {
+    ok: true,
+    service: SERVICE.name,
+    slug: SERVICE.slug,
+    version: SERVICE.version,
+    wallet_configured: false,
+    pay_to_configured: Boolean(env.payTo),
+    cdp_auth_configured: Boolean(env.cdpApiKeyId && env.cdpApiKeySecret),
+    seller_leak_warning: env.sellerLeakWarning,
+    demoMode: env.demoMode,
+    network: env.network,
+    thesis: SERVICE.thesis,
+  };
+}
+
+function mcpPricingBody(env: ReturnType<typeof oracleEnv>) {
+  return {
+    maxPriceUsd: env.maxPriceUsd,
+    network: env.network,
+    payTo: env.payTo,
+    connect: ORACLE_CONNECT_HOWTO,
+    free: FREE_TOOLS.map((t) => ({ name: t.name, path: t.httpPath })),
+    paid: PAID_TOOLS.map((t) => ({
+      name: t.name,
+      path: t.httpPath,
+      method: t.httpMethod,
+      priceUsd: clampPrice(t, undefined, env.maxPriceUsd),
+    })),
+  };
+}
+
+function mcpToolResult(id: unknown, body: unknown) {
+  return {
+    jsonrpc: "2.0" as const,
+    id,
+    result: {
+      structuredContent: body,
+      content: [{ type: "text" as const, text: JSON.stringify(body) }],
+    },
+  };
+}
 
 export function OPTIONS() {
   return new NextResponse(null, {
@@ -95,30 +141,21 @@ export async function POST(req: NextRequest) {
   if (body.method === "tools/call") {
     const name = body.params?.name ?? "";
     if (name === "oracle_health") {
-      return NextResponse.json(
-        {
-          jsonrpc: "2.0",
-          id,
-          result: { content: [{ type: "text", text: JSON.stringify({ ok: true, wallet_configured: false }) }] },
-        },
-        {
-          headers: { "access-control-allow-origin": "*" },
-        },
-      );
+      return NextResponse.json(mcpToolResult(id, mcpHealthBody(env)), {
+        headers: { "access-control-allow-origin": "*" },
+      });
     }
     if (name === "oracle_pricing") {
+      return NextResponse.json(mcpToolResult(id, mcpPricingBody(env)), {
+        headers: { "access-control-allow-origin": "*" },
+      });
+    }
+    if (!getTool(name)) {
       return NextResponse.json(
         {
           jsonrpc: "2.0",
           id,
-          result: {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({ paid: PAID_TOOLS.map((t) => t.name), connect: ORACLE_CONNECT_HOWTO }),
-              },
-            ],
-          },
+          error: { code: -32602, message: `UNKNOWN_TOOL:${name}` },
         },
         {
           headers: { "access-control-allow-origin": "*" },

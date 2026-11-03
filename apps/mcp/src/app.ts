@@ -6,6 +6,7 @@ import {
   FREE_TOOLS,
   SERVICE,
   clampPrice,
+  getTool,
   requireTool,
   decodePaymentHeader,
   buildDemoPaymentPayload,
@@ -50,6 +51,49 @@ async function runPaid(opts: {
   return handleConsult(opts);
 }
 
+function mcpHealthBody(env: OracleEnv) {
+  return {
+    ok: true,
+    service: SERVICE.name,
+    slug: SERVICE.slug,
+    version: SERVICE.version,
+    wallet_configured: false,
+    pay_to_configured: Boolean(env.payTo),
+    cdp_auth_configured: Boolean(env.cdpApiKeyId && env.cdpApiKeySecret),
+    seller_leak_warning: env.sellerLeakWarning,
+    demoMode: env.demoMode,
+    network: env.network,
+    thesis: SERVICE.thesis,
+  };
+}
+
+function mcpPricingBody(env: OracleEnv) {
+  return {
+    maxPriceUsd: env.maxPriceUsd,
+    network: env.network,
+    payTo: env.payTo,
+    connect: ORACLE_CONNECT_HOWTO,
+    free: FREE_TOOLS.map((t) => ({ name: t.name, path: t.httpPath })),
+    paid: PAID_TOOLS.map((t) => ({
+      name: t.name,
+      path: t.httpPath,
+      method: t.httpMethod,
+      priceUsd: clampPrice(t, undefined, env.maxPriceUsd),
+    })),
+  };
+}
+
+function mcpToolResult(id: unknown, body: unknown) {
+  return {
+    jsonrpc: "2.0" as const,
+    id,
+    result: {
+      structuredContent: body,
+      content: [{ type: "text" as const, text: JSON.stringify(body) }],
+    },
+  };
+}
+
 export function createOracleApp(env: OracleEnv): Express {
   const app = express();
   app.disable("x-powered-by");
@@ -82,19 +126,7 @@ export function createOracleApp(env: OracleEnv): Express {
   });
 
   app.get("/api/pricing", (_req, res) => {
-    res.json({
-      maxPriceUsd: env.maxPriceUsd,
-      network: env.network,
-      payTo: env.payTo,
-      connect: ORACLE_CONNECT_HOWTO,
-      free: FREE_TOOLS.map((t) => ({ name: t.name, path: t.httpPath })),
-      paid: PAID_TOOLS.map((t) => ({
-        name: t.name,
-        path: t.httpPath,
-        method: t.httpMethod,
-        priceUsd: clampPrice(t, undefined, env.maxPriceUsd),
-      })),
-    });
+    res.json(mcpPricingBody(env));
   });
 
   app.get("/.well-known/x402", (_req, res) => res.json(wellKnownX402(env)));
@@ -223,30 +255,18 @@ export function createOracleApp(env: OracleEnv): Express {
       const args = body.params?.arguments ?? {};
       const payment = body.params?._meta?.["x402/payment"] ?? null;
       if (name === "oracle_health") {
-        res.json({
-          jsonrpc: "2.0",
-          id,
-          result: {
-            content: [{ type: "text", text: JSON.stringify({ ok: true, wallet_configured: false }) }],
-          },
-        });
+        res.json(mcpToolResult(id, mcpHealthBody(env)));
         return;
       }
       if (name === "oracle_pricing") {
+        res.json(mcpToolResult(id, mcpPricingBody(env)));
+        return;
+      }
+      if (!getTool(name)) {
         res.json({
           jsonrpc: "2.0",
           id,
-          result: {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  paid: PAID_TOOLS.map((t) => t.name),
-                  connect: ORACLE_CONNECT_HOWTO,
-                }),
-              },
-            ],
-          },
+          error: { code: -32602, message: `UNKNOWN_TOOL:${name}` },
         });
         return;
       }

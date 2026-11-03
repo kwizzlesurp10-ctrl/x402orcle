@@ -83,6 +83,46 @@ describe("oracle http", () => {
     expect(x402.body.payTo).toBe(env.payTo);
   });
 
+  it("MCP free tools return seller posture and pricing; unknown tool is -32602", async () => {
+    const health = await request(app).post("/mcp").send({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "oracle_health", arguments: {} },
+    });
+    expect(health.status).toBe(200);
+    const healthBody = JSON.parse(health.body.result.content[0].text) as Record<string, unknown>;
+    expect(healthBody.pay_to_configured).toBe(true);
+    expect(healthBody.network).toBe(env.network);
+    expect(healthBody.demoMode).toBe(true);
+    expect(healthBody).toHaveProperty("seller_leak_warning");
+    expect(health.body.result.structuredContent).toEqual(healthBody);
+
+    const pricing = await request(app).post("/mcp").send({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "oracle_pricing", arguments: {} },
+    });
+    expect(pricing.status).toBe(200);
+    const pricingBody = JSON.parse(pricing.body.result.content[0].text) as {
+      paid: { name: string; priceUsd: number }[];
+    };
+    expect(pricingBody.paid.find((t) => t.name === "oracle_ask")?.priceUsd).toBe(0.1);
+    expect(pricing.body.result.structuredContent).toEqual(pricingBody);
+
+    const nope = await request(app).post("/mcp").send({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "tools/call",
+      params: { name: "nope", arguments: {} },
+    });
+    expect(nope.status).toBe(200);
+    expect(nope.body.error.code).toBe(-32602);
+    expect(nope.body.error.message).toBe("UNKNOWN_TOOL:nope");
+    expect(nope.body.result).toBeUndefined();
+  });
+
   it("MCP unpaid tool returns PaymentRequired structuredContent", async () => {
     const res = await request(app)
       .post("/mcp")
