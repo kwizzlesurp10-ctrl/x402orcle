@@ -96,7 +96,11 @@ export const TOOLS: OracleToolSpec[] = [
       challenge_b64_or_json: "eyJ4NDAyVmVyc2lvbiI6Mn0=",
       resource_url: "https://example.com/paid",
     },
-    outputExample: { verdict: "missing_bazaar_extension", wisdom: "…" },
+    outputExample: {
+      verdict: "missing_bazaar_extension",
+      wisdom:
+        "A live 402 must be standard base64 JSON with accepts[] (scheme exact, network eip155:8453, Base USDC) and extensions.bazaar.info.input.method.",
+    },
   },
   {
     name: "oracle_review_mcp",
@@ -114,7 +118,11 @@ export const TOOLS: OracleToolSpec[] = [
       mcp_url: "https://example.com/mcp",
       notes: "streamable-http, two paid tools",
     },
-    outputExample: { verdict: "needs_free_health_tool", wisdom: "…" },
+    outputExample: {
+      verdict: "needs_free_health_tool",
+      wisdom:
+        "A Bazaar-ready paid MCP server must expose createPaymentWrapper (or equivalent), x402ResourceServer on eip155:8453, declareDiscoveryExtension with toolName, a free health tool, paid consults, and streamable-http at /mcp.",
+    },
   },
   {
     name: "oracle_bazaar_rewrite",
@@ -134,7 +142,7 @@ export const TOOLS: OracleToolSpec[] = [
     },
     outputExample: {
       serviceName: "x402 MCP Oracle",
-      description: "…",
+      description: "Paid MCP consults for x402, Bazaar ranking, A2A tasks, burner isolation.",
       tags: ["x402", "mcp", "bazaar"],
     },
   },
@@ -154,7 +162,11 @@ export const TOOLS: OracleToolSpec[] = [
       goal: "List oracle_ask on CDP Bazaar after first mainnet settle",
       constraints: "seller-only host, no EVM_PRIVATE_KEY",
     },
-    outputExample: { verdict: "ship_seed_settle", wisdom: "…" },
+    outputExample: {
+      verdict: "ship_seed_settle",
+      wisdom:
+        "Outcome task: deploy HTTPS → GET 402 crawler on every paid POST → CDP validate → one seed settle from a local burner with USDC on Base → confirm discovery/search.",
+    },
   },
 ];
 
