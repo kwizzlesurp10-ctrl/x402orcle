@@ -74,7 +74,7 @@ export function wellKnownX402(env: OracleEnv) {
       price: t.tier === "free" ? "free" : `$${clampPrice(t, undefined, env.maxPriceUsd)}`,
       price_usd: t.tier === "free" ? 0 : clampPrice(t, undefined, env.maxPriceUsd),
       atomic_amount: t.tier === "free" ? "0" : usdToAtomic(clampPrice(t, undefined, env.maxPriceUsd)),
-      network: t.tier === "free" ? null : env.network,
+      network: env.network,
       name: t.serviceName,
       what: t.description,
       tags: t.tags,
