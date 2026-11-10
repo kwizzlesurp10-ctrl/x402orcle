@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  DEFAULT_X402_PAY_TO,
   loadEnv,
   handleConsult,
   handleA2aJsonRpc,
@@ -11,7 +12,7 @@ import {
 } from "../src/index.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
+  X402_PAY_TO: DEFAULT_X402_PAY_TO,
   X402_NETWORK: "eip155:8453",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
@@ -48,7 +49,7 @@ describe("consult 402 before validation", () => {
     const verifyCalls: string[] = [];
     const settleCalls: string[] = [];
     const live = loadEnv({
-      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
+      X402_PAY_TO: DEFAULT_X402_PAY_TO,
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
     });
