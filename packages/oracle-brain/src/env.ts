@@ -1,5 +1,19 @@
 import { z } from "zod";
 
+/** Keith's Coinbase Base Account — canonical x402 payee on Base mainnet (eip155:8453). */
+export const DEFAULT_X402_PAY_TO = "0x0d25A44f74868eCE53B305C97139CF4B62963410" as const;
+
+/** Retired payee; key holder unknown — must never receive funds. */
+export const RETIRED_X402_PAY_TO = "0xAB745e5F576667037696e78ba7dA28E193E4423D" as const;
+
+export function resolveX402PayTo(source: NodeJS.ProcessEnv): string {
+  return (
+    source.X402_PAY_TO?.trim() ||
+    source.X402_PAY_TO_ADDRESS?.trim() ||
+    DEFAULT_X402_PAY_TO
+  );
+}
+
 const ADDRESS = z
   .string()
   .regex(/^0x[a-fA-F0-9]{40}$/, "X402_PAY_TO must be a 20-byte address (0x + 40 hex), never a private key");
@@ -36,6 +50,15 @@ export const EnvSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "X402_PAY_TO is required (seller receive address)",
+        path: ["X402_PAY_TO"],
+      });
+      return;
+    }
+    if (payTo.toLowerCase() === RETIRED_X402_PAY_TO.toLowerCase()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "X402_PAY_TO is set to a retired settlement address. Set Keith's Base USDC payee (0x0d25…3410) instead.",
         path: ["X402_PAY_TO"],
       });
       return;
@@ -83,7 +106,10 @@ function truthy(v: string | undefined, fallback: boolean): boolean {
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): OracleEnv {
-  const parsed = EnvSchema.parse(source);
+  const parsed = EnvSchema.parse({
+    ...source,
+    X402_PAY_TO: resolveX402PayTo(source),
+  });
   const payTo = (parsed.X402_PAY_TO || parsed.X402_PAY_TO_ADDRESS)!;
   const sellerLeakWarning = Boolean(parsed.EVM_PRIVATE_KEY && parsed.EVM_PRIVATE_KEY.length > 0);
   const publicBaseUrl = parsed.PUBLIC_BASE_URL.replace(/\/$/, "");

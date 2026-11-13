@@ -31,10 +31,6 @@ loadDotEnv();
 
 const env = loadEnv({
   ...process.env,
-  X402_PAY_TO:
-    process.env.X402_PAY_TO ||
-    process.env.X402_PAY_TO_ADDRESS ||
-    "0xAB745e5F576667037696e78ba7dA28E193E4423D",
   DEMO_MODE: process.env.DEMO_MODE ?? "true",
 });
 
