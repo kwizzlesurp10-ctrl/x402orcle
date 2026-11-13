@@ -18,3 +18,4 @@ test-results
 secrets/
 ledger/*.jsonl
 .venv
+*.tsbuildinfo
