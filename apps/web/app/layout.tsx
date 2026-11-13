@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { jsonLd, SERVICE } from "@x402orcle/oracle-brain";
+import { displayPayTo, jsonLd, SERVICE } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../lib/env";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -77,6 +77,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
+      site: "@x402oracle",
       title: "x402 Oracle — 402 is the answer | A2A & MCP Wisdom Market",
       description:
         "Paid & Free MCP + HTTP 402 wisdom market for autonomous agents on Base USDC (eip155:8453).",
@@ -100,12 +101,12 @@ export async function generateMetadata(): Promise<Metadata> {
         { url: "/icon.svg", type: "image/svg+xml" },
         { url: "/favicon.ico", sizes: "any" },
       ],
-      apple: "/icon.svg",
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
     other: {
       x402: `x402_version=2; network=${env.network}`,
       "x402:network": env.network,
-      "x402:payTo": env.payTo,
+      "x402:payTo": displayPayTo(env),
       "x402:catalog": `${baseUrl}/.well-known/x402`,
       "mcp:endpoint": `${baseUrl}/mcp`,
       "mcp:manifest": `${baseUrl}/.well-known/mcp.json`,

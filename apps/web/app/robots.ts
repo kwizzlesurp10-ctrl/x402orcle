@@ -48,20 +48,21 @@ export default function robots(): MetadataRoute.Robots {
     "Diffbot",
   ];
 
+  const uniqueDiscovery = [...new Set(discoveryEndpoints)];
+
   return {
     rules: [
       {
         userAgent: "*",
-        allow: discoveryEndpoints,
+        allow: uniqueDiscovery,
         disallow: ["/v1/demo/mint-payment"],
       },
       {
         userAgent: aiBots,
-        allow: ["/", ...discoveryEndpoints],
+        allow: uniqueDiscovery,
         disallow: ["/v1/demo/mint-payment"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,
-    host: baseUrl,
   };
 }

@@ -100,6 +100,9 @@ importers:
 
   packages/oracle-brain:
     dependencies:
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@x402/extensions':
         specifier: ^2.25.0
         version: 2.25.0(typescript@5.9.3)

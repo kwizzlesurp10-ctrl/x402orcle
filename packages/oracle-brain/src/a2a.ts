@@ -215,7 +215,7 @@ export async function handleA2aJsonRpc(opts: {
   const method = normalizeMethod(opts.body.method);
   if (!method) {
     return {
-      status: 200,
+      status: 400,
       body: { jsonrpc: "2.0", id, error: { code: -32600, message: "Invalid Request" } },
     };
   }

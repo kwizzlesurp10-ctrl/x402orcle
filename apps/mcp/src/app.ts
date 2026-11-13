@@ -8,7 +8,9 @@ import {
   clampPrice,
   getTool,
   requireTool,
-  decodePaymentHeader,
+  parsePaymentHeader,
+  allowHeader,
+  methodNotAllowedBody,
   buildDemoPaymentPayload,
   buildPaymentRequired,
   demoPayerFromPayload,
@@ -30,15 +32,24 @@ import {
   jsonSchemaFromExample,
 } from "@x402orcle/oracle-brain";
 
-function paymentFromReq(req: Request): unknown | null {
+function paymentFromReq(req: Request): {
+  payment: unknown | null;
+  paymentHeaderInvalid: boolean;
+} {
   const header =
     (req.header("PAYMENT-SIGNATURE") ||
       req.header("payment-signature") ||
       req.header("X-PAYMENT") ||
       "") as string;
-  if (header) return decodePaymentHeader(header);
+  const parsed = parsePaymentHeader(header);
+  if (parsed.kind === "present") {
+    return { payment: parsed.payment, paymentHeaderInvalid: false };
+  }
+  if (parsed.kind === "invalid") {
+    return { payment: null, paymentHeaderInvalid: true };
+  }
   const body = req.body as { payment?: unknown } | undefined;
-  return body?.payment ?? null;
+  return { payment: body?.payment ?? null, paymentHeaderInvalid: false };
 }
 
 async function runPaid(opts: {
@@ -46,6 +57,7 @@ async function runPaid(opts: {
   toolName: string;
   input: Record<string, unknown>;
   payment: unknown | null;
+  paymentHeaderInvalid?: boolean;
   transport: "http" | "mcp";
 }): Promise<{ status: number; headers?: Record<string, string>; body: unknown }> {
   return handleConsult(opts);
@@ -147,6 +159,11 @@ export function createOracleApp(env: OracleEnv): Express {
   app.get("/openapi.json", (_req, res) => res.json(openApi(env)));
   app.get("/jsonld", (_req, res) => res.json(jsonLd(env)));
 
+  app.get("/v1/demo/mint-payment", (_req, res) => {
+    res.set(allowHeader("POST, OPTIONS"));
+    res.status(405).json(methodNotAllowedBody("POST, OPTIONS"));
+  });
+
   app.post("/v1/demo/mint-payment", (req, res) => {
     if (!env.demoMode) {
       res.status(403).json({ code: "DEMO_DISABLED" });
@@ -172,9 +189,9 @@ export function createOracleApp(env: OracleEnv): Express {
 
   const consultHandler = async (req: Request, res: Response) => {
     const toolName = String(req.params.tool || "");
-    const payment = paymentFromReq(req);
+    const { payment, paymentHeaderInvalid } = paymentFromReq(req);
     const input =
-      isPaidConsultTool(toolName) && !payment
+      isPaidConsultTool(toolName) && !payment && !paymentHeaderInvalid
         ? ({} as Record<string, unknown>)
         : ((req.method === "GET"
             ? (req.query as Record<string, unknown>)
@@ -184,6 +201,7 @@ export function createOracleApp(env: OracleEnv): Express {
       toolName,
       input,
       payment,
+      paymentHeaderInvalid,
       transport: "http",
     });
     if (result.headers) {
@@ -194,6 +212,21 @@ export function createOracleApp(env: OracleEnv): Express {
 
   app.get("/api/consult/:tool", consultHandler);
   app.post("/api/consult/:tool", consultHandler);
+
+  app.get("/a2a", (_req, res) => {
+    res.set(allowHeader("POST, OPTIONS"));
+    res.status(405).json(methodNotAllowedBody("POST, OPTIONS"));
+  });
+
+  app.options("/a2a", (_req, res) => {
+    res.set({
+      ...allowHeader("POST, OPTIONS"),
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "content-type, authorization",
+    });
+    res.status(204).end();
+  });
 
   app.post("/a2a", async (req, res) => {
     const result = await handleA2aJsonRpc({
@@ -206,6 +239,25 @@ export function createOracleApp(env: OracleEnv): Express {
       },
     });
     res.status(result.status).json(result.body);
+  });
+
+  app.get("/mcp", (req, res) => {
+    const accept = String(req.header("accept") ?? "");
+    if (accept.toLowerCase().includes("text/event-stream")) {
+      res.set({ ...allowHeader("POST, OPTIONS"), Vary: "Accept" });
+      res.status(405).json(methodNotAllowedBody("POST, OPTIONS"));
+      return;
+    }
+    res.set({ Vary: "Accept", "cache-control": "public, max-age=3600, stale-while-revalidate=86400" });
+    res.json({
+      ...mcpJson(env),
+      transport: "streamable-http",
+      endpoint: `${env.publicBaseUrl}/mcp`,
+      methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+      usage:
+        "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
+      documentation: `${env.publicBaseUrl}/llms.txt`,
+    });
   });
 
   app.post("/mcp", async (req, res) => {

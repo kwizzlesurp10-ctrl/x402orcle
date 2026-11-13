@@ -167,6 +167,32 @@ describe("oracle http", () => {
     expect(res.body.discovery.openapi).toBeTruthy();
   });
 
+  it("GET /a2a and GET /v1/demo/mint-payment return 405 with Allow", async () => {
+    const a2a = await request(app).get("/a2a");
+    expect(a2a.status).toBe(405);
+    expect(a2a.headers.allow).toBe("POST, OPTIONS");
+    const mint = await request(app).get("/v1/demo/mint-payment");
+    expect(mint.status).toBe(405);
+    expect(mint.headers.allow).toBe("POST, OPTIONS");
+  });
+
+  it("GET /mcp with SSE Accept returns 405 and Vary Accept", async () => {
+    const res = await request(app).get("/mcp").set("Accept", "text/event-stream");
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe("POST, OPTIONS");
+    expect(res.headers.vary).toBe("Accept");
+  });
+
+  it("malformed PAYMENT-SIGNATURE returns 402 INVALID_PAYMENT_SIGNATURE", async () => {
+    const res = await request(app)
+      .post("/api/consult/oracle_ask")
+      .set("PAYMENT-SIGNATURE", "not-valid-base64!!!")
+      .send({ question: "test" });
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe("INVALID_PAYMENT_SIGNATURE");
+    expect(res.headers["payment-required"]).toBeTruthy();
+  });
+
   it("https public host refuses demo mint", async () => {
     const liveEnv = loadEnv({
       X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
