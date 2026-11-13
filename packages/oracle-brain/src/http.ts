@@ -310,14 +310,17 @@ function freeConsultBody(tool: ReturnType<typeof requireTool>, env: OracleEnv): 
   return { ok: true };
 }
 
-function paymentChallengeResult(pr: ReturnType<typeof buildPaymentRequired>): ConsultResult {
+function paymentChallengeResult(
+  pr: ReturnType<typeof buildPaymentRequired>,
+  bodyOverride?: Record<string, unknown>,
+): ConsultResult {
   return {
     status: 402,
     headers: {
       "PAYMENT-REQUIRED": encodePaymentRequired(pr),
       "Cache-Control": "no-store",
     },
-    body: pr,
+    body: bodyOverride ? { ...pr, ...bodyOverride } : pr,
   };
 }
 
@@ -355,6 +358,7 @@ export async function handleConsult(opts: {
   toolName: string;
   input: Record<string, unknown>;
   payment: unknown | null;
+  paymentHeaderInvalid?: boolean;
   transport: "http" | "mcp";
   fetchImpl?: typeof fetch;
 }): Promise<ConsultResult> {
@@ -366,6 +370,14 @@ export async function handleConsult(opts: {
     priceUsd,
     transport: opts.transport,
   });
+
+  if (tool.tier === "paid" && opts.paymentHeaderInvalid) {
+    return paymentChallengeResult(pr, {
+      error: "INVALID_PAYMENT_SIGNATURE",
+      message:
+        "PAYMENT-SIGNATURE header is present but could not be decoded as a valid x402 payment payload.",
+    });
+  }
 
   if (tool.tier === "paid" && !opts.payment) {
     return paymentChallengeResult(pr);

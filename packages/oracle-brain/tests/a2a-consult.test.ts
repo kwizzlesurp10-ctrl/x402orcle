@@ -22,6 +22,24 @@ beforeEach(() => {
   clearA2aTasksForTests();
 });
 
+describe("invalid payment signature", () => {
+  it("returns 402 with INVALID_PAYMENT_SIGNATURE when header is malformed", async () => {
+    const res = await handleConsult({
+      env,
+      toolName: "oracle_ask",
+      input: { question: "hi" },
+      payment: null,
+      paymentHeaderInvalid: true,
+      transport: "http",
+    });
+    expect(res.status).toBe(402);
+    const body = res.body as { error: string; accepts: unknown[] };
+    expect(body.error).toBe("INVALID_PAYMENT_SIGNATURE");
+    expect(body.accepts.length).toBeGreaterThan(0);
+    expect(res.headers?.["PAYMENT-REQUIRED"]).toBeTruthy();
+  });
+});
+
 describe("consult 402 before validation", () => {
   for (const tool of PAID_TOOLS) {
     it(`${tool.name} returns 402 on empty input without payment`, async () => {
@@ -121,6 +139,13 @@ describe("free consult payloads", () => {
 });
 
 describe("a2a json-rpc", () => {
+  it("empty body returns HTTP 400 Invalid Request", async () => {
+    const res = await handleA2aJsonRpc({ env, body: {} });
+    expect(res.status).toBe(400);
+    const body = res.body as { error: { code: number } };
+    expect(body.error.code).toBe(-32600);
+  });
+
   it("message/send unpaid returns input-required task with x402 metadata", async () => {
     const res = await handleA2aJsonRpc({
       env,

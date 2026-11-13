@@ -27,4 +27,3 @@ User-agent: FirecrawlAgent
 Allow: /
 
 Sitemap: https://x402orcle.vercel.app/sitemap.xml
-Host: https://x402orcle.vercel.app

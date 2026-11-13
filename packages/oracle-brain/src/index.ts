@@ -17,6 +17,7 @@ export {
   buildPaymentRequired,
   encodePaymentRequired,
   decodePaymentHeader,
+  parsePaymentHeader,
   buildAccept,
   bazaarForTool,
   paidCatalogRequired,
@@ -33,7 +34,13 @@ export {
   agentsTxt,
   openApi,
   jsonLd,
+  A2A_X402_EXTENSION_URI,
+  displayPayTo,
+  consultApiIndex,
+  apiRouteNotFound,
 } from "./discovery.js";
+export { toChecksumAddress } from "./eip55.js";
+export { methodNotAllowedBody, allowHeader } from "./http-allow.js";
 export { buildDemoPaymentPayload, demoVerify, demoPayerFromPayload } from "./demo-payment.js";
 export {
   handleConsult,

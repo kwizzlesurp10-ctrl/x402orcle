@@ -127,6 +127,19 @@ export function decodePaymentHeader(header: string | undefined): unknown | null 
   }
 }
 
+export type PaymentHeaderParse =
+  | { kind: "absent" }
+  | { kind: "invalid" }
+  | { kind: "present"; payment: unknown };
+
+export function parsePaymentHeader(header: string | undefined): PaymentHeaderParse {
+  const trimmed = header?.trim() ?? "";
+  if (!trimmed) return { kind: "absent" };
+  const payment = decodePaymentHeader(trimmed);
+  if (payment === null) return { kind: "invalid" };
+  return { kind: "present", payment };
+}
+
 export function paidCatalogRequired(env: OracleEnv): PaymentRequired[] {
   return PAID_TOOLS.map((tool) =>
     buildPaymentRequired({

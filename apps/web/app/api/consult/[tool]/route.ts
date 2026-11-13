@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  decodePaymentHeader,
   getTool,
   handleConsult,
   isPaidConsultTool,
+  parsePaymentHeader,
 } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../../../lib/env";
 
@@ -21,9 +21,9 @@ async function consult(req: NextRequest, tool: string) {
   }
 
   const paymentHeader = paymentHeaderFrom(req);
-  const hasPaymentHeader = Boolean(paymentHeader.trim());
+  const parsed = parsePaymentHeader(paymentHeader);
 
-  if (isPaidConsultTool(tool) && !hasPaymentHeader) {
+  if (isPaidConsultTool(tool) && parsed.kind === "absent") {
     const result = await handleConsult({
       env,
       toolName: tool,
@@ -51,15 +51,19 @@ async function consult(req: NextRequest, tool: string) {
     input = Object.fromEntries(req.nextUrl.searchParams.entries());
   }
 
-  const payment = hasPaymentHeader
-    ? decodePaymentHeader(paymentHeader)
-    : (input.payment as unknown) ?? null;
+  const payment =
+    parsed.kind === "present"
+      ? parsed.payment
+      : parsed.kind === "invalid"
+        ? null
+        : ((input.payment as unknown) ?? null);
 
   const result = await handleConsult({
     env,
     toolName: tool,
     input,
     payment,
+    paymentHeaderInvalid: parsed.kind === "invalid",
     transport: "http",
   });
   return NextResponse.json(result.body, { status: result.status, headers: result.headers });

@@ -10,6 +10,8 @@ import {
   ORACLE_CONNECT_HOWTO,
   jsonSchemaFromExample,
   mcpJson,
+  allowHeader,
+  methodNotAllowedBody,
 } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../lib/env";
 
@@ -69,7 +71,19 @@ export function OPTIONS() {
   });
 }
 
-export function GET() {
+export function GET(req: NextRequest) {
+  const accept = req.headers.get("accept") ?? "";
+  if (accept.toLowerCase().includes("text/event-stream")) {
+    return NextResponse.json(methodNotAllowedBody("POST, OPTIONS"), {
+      status: 405,
+      headers: {
+        ...allowHeader("POST, OPTIONS"),
+        Vary: "Accept",
+        "access-control-allow-origin": "*",
+      },
+    });
+  }
+
   const env = oracleEnv();
   return NextResponse.json(
     {
@@ -77,12 +91,14 @@ export function GET() {
       transport: "streamable-http",
       endpoint: `${env.publicBaseUrl}/mcp`,
       methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
-      usage: "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint.",
+      usage:
+        "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
       documentation: `${env.publicBaseUrl}/llms.txt`,
     },
     {
       headers: {
         "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+        Vary: "Accept",
         "access-control-allow-origin": "*",
       },
     },

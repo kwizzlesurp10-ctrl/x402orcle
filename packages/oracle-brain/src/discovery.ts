@@ -1,16 +1,51 @@
 import { FREE_TOOLS, PAID_TOOLS, SERVICE, TOOLS, clampPrice, jsonSchemaFromExample } from "./catalog.js";
 import { BASE_USDC, usdToAtomic, usdcForNetwork, type OracleEnv } from "./env.js";
+import { toChecksumAddress } from "./eip55.js";
 import { ORACLE_CONNECT_HOWTO } from "./persona.js";
 import { paidCatalogRequired } from "./challenge.js";
 
+/** Checksummed payTo for human-facing manifests; settlement values stay `env.payTo`. */
+export function displayPayTo(env: OracleEnv): string {
+  return toChecksumAddress(env.payTo);
+}
+
+export function consultApiIndex() {
+  return {
+    code: "CONSULT_TOOL_REQUIRED",
+    message: "Specify a consult tool name: GET or POST /api/consult/{tool}",
+    tools: TOOLS.map((t) => ({
+      name: t.name,
+      tier: t.tier,
+      path: t.httpPath,
+      method: t.httpMethod,
+    })),
+    free: FREE_TOOLS.map((t) => t.name),
+    paid: PAID_TOOLS.map((t) => t.name),
+    openapi: "/openapi.json",
+  };
+}
+
+export function apiRouteNotFound(path: string) {
+  return {
+    code: "NOT_FOUND",
+    message: `No API route at ${path}`,
+    discovery: "/openapi.json",
+    health: "/api/health",
+    pricing: "/api/pricing",
+    consult: "/api/consult/{tool}",
+  };
+}
+
 export function funding(env: OracleEnv) {
+  const payToDisplay = displayPayTo(env);
   return {
     schema_version: "1.0",
     network: env.network,
     chainId: env.network.includes("84532") ? 84532 : 8453,
     asset: usdcForNetwork(env.network),
     assetSymbol: "USDC",
-    payTo: env.payTo,
+    payTo: payToDisplay,
+    payToRaw: env.payTo,
     explorer: `https://basescan.org/address/${env.payTo}`,
     machineCashier: {
       protocol: "x402",
@@ -44,7 +79,7 @@ export function wellKnownX402(env: OracleEnv) {
     networks: [env.network],
     asset: usdcForNetwork(env.network),
     asset_symbol: "USDC",
-    payTo: env.payTo,
+    payTo: displayPayTo(env),
     facilitator: env.facilitatorUrl,
     payment_header: "PAYMENT-SIGNATURE",
     challenge_header: "PAYMENT-REQUIRED",
@@ -92,9 +127,11 @@ export function mcpJson(env: OracleEnv) {
     version: SERVICE.version,
     transport: "streamable-http",
     url: `${env.publicBaseUrl}/mcp`,
+    streamable_http_note:
+      "JSON-RPC runs on HTTP POST. GET with Accept: application/json returns this catalog; SSE (Accept: text/event-stream) is not supported.",
     authentication: {
       type: "x402",
-      pay_to: env.payTo,
+      pay_to: displayPayTo(env),
       network: env.network,
     },
     tools: TOOLS.map((t) => ({
@@ -110,8 +147,6 @@ export function mcpJson(env: OracleEnv) {
 /** Canonical a2a-x402 extension URI (spec v0.2 §2: implementations MUST use it). */
 export const A2A_X402_EXTENSION_URI =
   "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2";
-/** Pre-rename URI, still declared so older clients keep matching. */
-export const A2A_X402_LEGACY_EXTENSION_URI = "https://github.com/google-a2a/a2a-x402/v0.1";
 /**
  * /a2a speaks A2A 0.3 wire shapes (kind-tagged objects, lowercase task states),
  * so the interface is declared as 0.3 rather than 1.0.
@@ -124,6 +159,7 @@ export function agentCard(env: OracleEnv) {
   const a2aUrl = `${base}/a2a`;
   const asset = usdcForNetwork(env.network);
   const catalogUrl = `${base}/.well-known/x402`;
+  const payToDisplay = displayPayTo(env);
   return {
     protocolVersion: `${A2A_INTERFACE_PROTOCOL_VERSION}.0`,
     id: SERVICE.slug,
@@ -132,7 +168,7 @@ export function agentCard(env: OracleEnv) {
     description:
       `${SERVICE.thesis} Paid x402 oracle on Base: answers questions, diagnoses HTTP 402 challenges, ` +
       "reviews MCP servers, rewrites Bazaar listings and completes oracle tasks. " +
-      `USDC on ${env.network}, payTo ${env.payTo}. Free: /api/health, /api/pricing. Catalog: ${catalogUrl}.`,
+      `USDC on ${env.network}, payTo ${payToDisplay}. Free: /api/health, /api/pricing. Catalog: ${catalogUrl}.`,
     url: a2aUrl,
     preferredTransport: "JSONRPC",
     additionalInterfaces: [{ url: a2aUrl, transport: "JSONRPC" }],
@@ -175,16 +211,11 @@ export function agentCard(env: OracleEnv) {
             network: env.network,
             asset,
             assetSymbol: "USDC",
-            payTo: env.payTo,
+            payTo: payToDisplay,
             facilitator: env.facilitatorUrl,
             catalog: catalogUrl,
             a2a: a2aUrl,
           },
-        },
-        {
-          uri: A2A_X402_LEGACY_EXTENSION_URI,
-          description: "Legacy URI for the same x402 extension (pre-v0.2 clients).",
-          required: false,
         },
       ],
     },
@@ -207,7 +238,7 @@ export function agentCard(env: OracleEnv) {
           network: env.network,
           asset,
           assetSymbol: "USDC",
-          payTo: env.payTo,
+          payTo: payToDisplay,
           facilitator: env.facilitatorUrl,
           challengeHeader: "PAYMENT-REQUIRED",
           paymentHeader: "PAYMENT-SIGNATURE",
@@ -249,7 +280,7 @@ export function agentCard(env: OracleEnv) {
           network: env.network,
           asset,
           assetSymbol: "USDC",
-          payTo: env.payTo,
+          payTo: payToDisplay,
           endpoint: { method: t.httpMethod, url: httpUrl },
           a2a: { url: a2aUrl, skillId: t.name },
           mcp: { url: `${base}/mcp`, toolName: t.name },
@@ -263,7 +294,7 @@ export function agentCard(env: OracleEnv) {
           atomicAmount: paid ? usdToAtomic(priceUsd) : "0",
           network: env.network,
           asset,
-          payTo: env.payTo,
+          payTo: payToDisplay,
         },
         inputSchema: jsonSchemaFromExample(t.inputExample),
         outputSchema: jsonSchemaFromExample(t.outputExample),
@@ -287,7 +318,7 @@ export function agentsJson(env: OracleEnv) {
         mcp: `${env.publicBaseUrl}/mcp`,
       },
     ],
-    settlement_address: env.payTo,
+    settlement_address: displayPayTo(env),
     network: env.network,
     asset: usdcForNetwork(env.network),
   };
@@ -324,7 +355,7 @@ export function llmsTxt(env: OracleEnv): string {
     "## Settlement Rules & Guidelines",
     `- Network: ${env.network} (Base Mainnet)`,
     `- Asset: ${usdcForNetwork(env.network)} (USDC)`,
-    `- PayTo Address: ${env.payTo}`,
+    `- PayTo Address: ${displayPayTo(env)}`,
     "- Ranking & Cataloging: Triggered by verified onchain mainnet settlements. Unpaid 402 challenge probes do not index.",
     "",
   ].join("\n");
@@ -355,7 +386,7 @@ export function llmsFullTxt(env: OracleEnv): string {
     `- Facilitator: ${env.facilitatorUrl}`,
     `- Network: ${env.network} (Base Mainnet / eip155:8453)`,
     `- Asset: ${usdcForNetwork(env.network)} (USDC on Base)`,
-    `- PayTo: ${env.payTo}`,
+    `- PayTo: ${displayPayTo(env)}`,
     `- Challenge Header: PAYMENT-REQUIRED (Base64 JSON)`,
     `- Authorization Header: PAYMENT-SIGNATURE`,
     `- Receipt Header: PAYMENT-RESPONSE`,
@@ -517,6 +548,158 @@ export function openApi(env: OracleEnv) {
       },
     },
   };
+
+  const discoveryGet = (summary: string, operationId: string, tag: string) => ({
+    get: {
+      summary,
+      operationId,
+      tags: [tag],
+      security: [],
+      responses: {
+        "200": {
+          description: summary,
+          content: { "application/json": { schema: { type: "object" } } },
+        },
+      },
+    },
+  });
+
+  paths["/health"] = {
+    get: {
+      summary: "Service liveness (same payload as /api/health)",
+      operationId: "health_root",
+      tags: ["health"],
+      security: [],
+      responses: {
+        "200": {
+          description: "OK",
+          content: { "application/json": { schema: { type: "object" } } },
+        },
+      },
+    },
+  };
+
+  paths["/a2a"] = {
+    post: {
+      summary: "A2A JSON-RPC 0.3 (SendMessage, GetTask)",
+      operationId: "a2a_jsonrpc",
+      tags: ["a2a"],
+      security: [],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["jsonrpc", "method"],
+              properties: {
+                jsonrpc: { type: "string", const: "2.0" },
+                id: {},
+                method: { type: "string" },
+                params: { type: "object" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "JSON-RPC result" },
+        "400": { description: "Invalid JSON-RPC request" },
+      },
+    },
+    get: {
+      summary: "Method not allowed",
+      operationId: "a2a_get_disallowed",
+      tags: ["a2a"],
+      security: [],
+      responses: {
+        "405": {
+          description: "Use POST",
+          headers: { Allow: { schema: { type: "string" }, example: "POST, OPTIONS" } },
+        },
+      },
+    },
+  };
+
+  paths["/mcp"] = {
+    get: {
+      summary: "MCP catalog (not SSE); JSON-RPC via POST",
+      operationId: "mcp_catalog_get",
+      tags: ["mcp"],
+      security: [],
+      parameters: [
+        {
+          name: "Accept",
+          in: "header",
+          schema: { type: "string" },
+          description: "application/json returns catalog; text/event-stream returns 405",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "MCP server catalog",
+          headers: { Vary: { schema: { type: "string" }, example: "Accept" } },
+          content: { "application/json": { schema: { type: "object" } } },
+        },
+        "405": {
+          description: "SSE not supported",
+          headers: { Allow: { schema: { type: "string" }, example: "POST, OPTIONS" } },
+        },
+      },
+    },
+    post: {
+      summary: "MCP streamable HTTP JSON-RPC",
+      operationId: "mcp_jsonrpc",
+      tags: ["mcp"],
+      security: [{ x402Payment: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                jsonrpc: { type: "string" },
+                id: {},
+                method: { type: "string" },
+                params: { type: "object" },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": { description: "JSON-RPC response (402 payment challenges use HTTP 200 + isError for tools/call)" },
+        "202": { description: "notifications/initialized accepted" },
+      },
+    },
+  };
+
+  paths["/.well-known/x402"] = discoveryGet("x402 v2 payment catalog", "well_known_x402", "discovery");
+  paths["/.well-known/agent-card.json"] = discoveryGet("A2A agent card", "well_known_agent_card", "discovery");
+  paths["/.well-known/agent.json"] = discoveryGet("A2A agent card alias", "well_known_agent_json", "discovery");
+  paths["/.well-known/agents.json"] = discoveryGet("Agents registry index", "well_known_agents_json", "discovery");
+  paths["/.well-known/mcp.json"] = discoveryGet("MCP server manifest", "well_known_mcp_json", "discovery");
+  paths["/.well-known/mcp"] = discoveryGet("MCP server manifest alias", "well_known_mcp", "discovery");
+
+  paths["/llms.txt"] = {
+    get: {
+      summary: "LLMs discovery text",
+      operationId: "llms_txt",
+      tags: ["discovery"],
+      responses: { "200": { description: "text/plain" } },
+    },
+  };
+  paths["/agents.txt"] = {
+    get: {
+      summary: "Agents.txt crawlers manifest",
+      operationId: "agents_txt",
+      tags: ["discovery"],
+      responses: { "200": { description: "text/plain" } },
+    },
+  };
+  paths["/jsonld"] = discoveryGet("Schema.org JSON-LD graph", "jsonld", "discovery");
+
   return {
     openapi: "3.1.0",
     info: {
@@ -540,6 +723,8 @@ export function openApi(env: OracleEnv) {
       { name: "pricing", description: "Pricing menu and connection instructions" },
       { name: "oracle", description: "Paid expert consultation tools" },
       { name: "a2a", description: "Autonomous outcome-driven tasks" },
+      { name: "mcp", description: "Model Context Protocol streamable HTTP gateway" },
+      { name: "discovery", description: "Machine discovery manifests and agent cards" },
       { name: "funding", description: "Machine cashier manifest and canonical payTo configuration" },
     ],
     components: {

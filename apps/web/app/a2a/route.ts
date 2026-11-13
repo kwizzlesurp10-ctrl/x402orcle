@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleA2aJsonRpc } from "@x402orcle/oracle-brain";
+import { allowHeader, handleA2aJsonRpc, methodNotAllowedBody } from "@x402orcle/oracle-brain";
 import { oracleEnv } from "../../lib/env";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } },
-      { status: 200, headers: { "access-control-allow-origin": "*" } },
+      { status: 400, headers: { "access-control-allow-origin": "*" } },
     );
   }
   const result = await handleA2aJsonRpc({
@@ -27,6 +27,13 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(result.body, {
     status: result.status,
     headers: { "access-control-allow-origin": "*" },
+  });
+}
+
+export function GET() {
+  return NextResponse.json(methodNotAllowedBody("POST, OPTIONS"), {
+    status: 405,
+    headers: { ...allowHeader("POST, OPTIONS"), "access-control-allow-origin": "*" },
   });
 }
 
