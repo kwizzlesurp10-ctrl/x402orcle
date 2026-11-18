@@ -2,6 +2,9 @@
 
 **402 is the answer. The Oracle is how you ask.**
 
+[![x402 Oracle (KwizzleSurp) listed on x402-list](https://x402-list.com/badge/x402-oracle-kwizzlesurp.svg)](https://x402-list.com/services/x402-oracle-kwizzlesurp?utm_source=badge&utm_medium=referral&utm_campaign=embed)
+[![x402 Oracle (KwizzleSurp) uptime on x402-list](https://x402-list.com/badge/x402-oracle-kwizzlesurp.svg?data=uptime)](https://x402-list.com/services/x402-oracle-kwizzlesurp?utm_source=badge&utm_medium=referral&utm_campaign=embed)
+
 Paid MCP + HTTP 402 wisdom market for x402 / MCP / A2A / Bazaar. Seller-only public host. Base USDC (`eip155:8453`).
 
 ## Discover

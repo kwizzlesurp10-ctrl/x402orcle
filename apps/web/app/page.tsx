@@ -86,8 +86,36 @@ export default function Page() {
         </nav>
 
         <footer>
-          payTo {env.payTo} · {env.network} · MAX_PRICE_USD={env.maxPriceUsd} ·
-          payment for consult artifacts, not a token, not equity.
+          <p className="x402-list-badge">
+            <a
+              href="https://x402-list.com/services/x402-oracle-kwizzlesurp?utm_source=badge&utm_medium=referral&utm_campaign=embed"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- remote listing badge; not next/image */}
+              <img
+                src="https://x402-list.com/badge/x402-oracle-kwizzlesurp.svg"
+                alt="x402 Oracle (KwizzleSurp) listed on x402-list"
+                height={28}
+              />
+            </a>
+            <a
+              href="https://x402-list.com/services/x402-oracle-kwizzlesurp?utm_source=badge&utm_medium=referral&utm_campaign=embed"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- live uptime SVG; must not be optimized at build */}
+              <img
+                src="https://x402-list.com/badge/x402-oracle-kwizzlesurp.svg?data=uptime"
+                alt="x402 Oracle (KwizzleSurp) uptime on x402-list"
+                height={28}
+              />
+            </a>
+          </p>
+          <p>
+            payTo {env.payTo} · {env.network} · MAX_PRICE_USD={env.maxPriceUsd} ·
+            payment for consult artifacts, not a token, not equity.
+          </p>
         </footer>
       </article>
     </main>

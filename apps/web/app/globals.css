@@ -110,3 +110,29 @@ footer {
   font-size: 11px;
   color: var(--vellum-dim);
 }
+
+footer p {
+  margin: 0 0 12px;
+}
+
+footer p:last-child {
+  margin-bottom: 0;
+}
+
+.x402-list-badge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  line-height: 0;
+}
+
+.x402-list-badge a {
+  display: inline-block;
+  opacity: 0.92;
+  transition: opacity 0.15s ease;
+}
+
+.x402-list-badge a:hover {
+  opacity: 1;
+}
