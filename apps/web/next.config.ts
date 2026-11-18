@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
               "object-src 'none'",
               "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
+              "img-src 'self' data: blob: https://x402-list.com",
               "font-src 'self'",
               "connect-src 'self'",
             ].join("; "),
