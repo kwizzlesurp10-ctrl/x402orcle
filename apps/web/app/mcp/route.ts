@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   handleConsult,
   SERVICE,
-  TOOLS,
   FREE_TOOLS,
   PAID_TOOLS,
   clampPrice,
   getTool,
   ORACLE_CONNECT_HOWTO,
-  jsonSchemaFromExample,
   mcpJson,
+  mcpToolDefinitions,
   allowHeader,
   methodNotAllowedBody,
 } from "@x402orcle/oracle-brain";
@@ -142,11 +141,7 @@ export async function POST(req: NextRequest) {
         jsonrpc: "2.0",
         id,
         result: {
-          tools: TOOLS.map((t) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: jsonSchemaFromExample(t.inputExample),
-          })),
+          tools: mcpToolDefinitions(),
         },
       },
       {

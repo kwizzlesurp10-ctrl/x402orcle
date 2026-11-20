@@ -113,8 +113,9 @@ export function wellKnownX402(env: OracleEnv) {
       name: t.serviceName,
       what: t.description,
       tags: t.tags,
-      inputSchema: jsonSchemaFromExample(t.inputExample),
-      outputSchema: jsonSchemaFromExample(t.outputExample),
+      inputSchema: t.inputSchema,
+      outputSchema: t.outputSchema,
+      annotations: t.annotations,
       params: t.inputExample,
     })),
     legal: funding(env).legal,
@@ -139,7 +140,9 @@ export function mcpJson(env: OracleEnv) {
       description: t.description,
       paid: t.tier === "paid",
       priceUsd: t.tier === "paid" ? clampPrice(t, undefined, env.maxPriceUsd) : 0,
-      inputSchema: jsonSchemaFromExample(t.inputExample),
+      inputSchema: t.inputSchema,
+      outputSchema: t.outputSchema,
+      annotations: t.annotations,
     })),
   };
 }

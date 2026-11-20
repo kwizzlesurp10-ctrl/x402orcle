@@ -20,6 +20,7 @@ import {
   funding,
   wellKnownX402,
   mcpJson,
+  mcpToolDefinitions,
   agentCard,
   agentsJson,
   llmsTxt,
@@ -29,7 +30,6 @@ import {
   jsonLd,
   landingHtml,
   ORACLE_CONNECT_HOWTO,
-  jsonSchemaFromExample,
 } from "@x402orcle/oracle-brain";
 
 function paymentFromReq(req: Request): {
@@ -300,11 +300,7 @@ export function createOracleApp(env: OracleEnv): Express {
         jsonrpc: "2.0",
         id,
         result: {
-          tools: TOOLS.map((t) => ({
-            name: t.name,
-            description: t.description,
-            inputSchema: jsonSchemaFromExample(t.inputExample),
-          })),
+          tools: mcpToolDefinitions(),
         },
       });
       return;

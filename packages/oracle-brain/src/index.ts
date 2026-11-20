@@ -7,7 +7,11 @@ export {
   getTool,
   clampPrice,
   jsonSchemaFromExample,
+  mcpToolDefinitions,
+  type JsonSchemaProperty,
+  type McpToolAnnotations,
   type OracleToolSpec,
+  type ToolJsonSchema,
 } from "./catalog.js";
 export { gatePaidTool, refuseKeyRequestMessage } from "./policy.js";
 export { envelope, WisdomEnvelopeSchema, type WisdomEnvelope } from "./envelope.js";

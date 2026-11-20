@@ -1,11 +1,10 @@
 import { createInterface } from "node:readline";
 import {
   SERVICE,
-  TOOLS,
   getTool,
   handleConsult,
-  jsonSchemaFromExample,
   loadEnv,
+  mcpToolDefinitions,
 } from "@x402orcle/oracle-brain";
 
 const env = loadEnv({
@@ -61,11 +60,7 @@ async function handleRequest(line: string) {
       jsonrpc: "2.0",
       id,
       result: {
-        tools: TOOLS.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: jsonSchemaFromExample(t.inputExample),
-        })),
+        tools: mcpToolDefinitions(),
       },
     });
     return;
