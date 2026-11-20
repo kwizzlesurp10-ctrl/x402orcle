@@ -147,6 +147,13 @@ export function createOracleApp(env: OracleEnv): Express {
   app.get("/.well-known/agent-card.json", (_req, res) => res.json(agentCard(env)));
   app.get("/.well-known/agents.json", (_req, res) => res.json(agentsJson(env)));
   app.get("/.well-known/funding.json", (_req, res) => res.json(funding(env)));
+  app.get("/.well-known/x402-trust.txt", (_req, res) => {
+    res
+      .type("text/plain")
+      .send(
+        "x402-trust-verification=v1:MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAES7UjJ9XFU1xMwtXSfsSyOnBoTxMBdKTvypTHDwxiWeIzJ5k3JLtJRDtBo435MFhItcelm_1GFzzsF3ltaL6tjA\n",
+      );
+  });
   app.get("/llms.txt", (_req, res) => {
     res.type("text/plain").send(llmsTxt(env));
   });
