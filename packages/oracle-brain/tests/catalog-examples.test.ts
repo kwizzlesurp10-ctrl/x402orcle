@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { TOOLS, loadEnv, wellKnownX402 } from "../src/index.js";
+import { DEFAULT_X402_PAY_TO, TOOLS, loadEnv, wellKnownX402 } from "../src/index.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
+  X402_PAY_TO: DEFAULT_X402_PAY_TO,
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
   DEMO_MODE: "true",
 });

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import request from "supertest";
-import { loadEnv } from "@x402orcle/oracle-brain";
+import { DEFAULT_X402_PAY_TO, loadEnv } from "@x402orcle/oracle-brain";
 import { createOracleApp } from "../src/app.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+  X402_PAY_TO: DEFAULT_X402_PAY_TO,
   X402_NETWORK: "eip155:8453",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
@@ -30,6 +30,8 @@ describe("oracle http", () => {
     expect(res.body.extensions.bazaar.info.input.method).toBe("POST");
     expect(res.body.extensions.bazaar.schema.$schema).toMatch(/json-schema/);
     expect(res.body.resource.url).toContain("/api/consult/oracle_ask");
+    expect(res.body.accepts[0]?.payTo).toBe(DEFAULT_X402_PAY_TO);
+    expect(res.body.accepts[0]?.network).toBe("eip155:8453");
   });
 
   it("unpaid empty-body POST is 402 for every paid consult", async () => {
@@ -76,7 +78,7 @@ describe("oracle http", () => {
   it("llms.txt and agent-card are crawlable", async () => {
     const llms = await request(app).get("/llms.txt");
     expect(llms.status).toBe(200);
-    expect(llms.text).toContain("0xAB745e5F576667037696e78ba7dA28E193E4423D");
+    expect(llms.text).toContain(DEFAULT_X402_PAY_TO);
     const card = await request(app).get("/.well-known/agent-card.json");
     expect(card.body.payments.rails[0].id).toBe("x402");
     const x402 = await request(app).get("/.well-known/x402");
@@ -195,7 +197,7 @@ describe("oracle http", () => {
 
   it("https public host refuses demo mint", async () => {
     const liveEnv = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: DEFAULT_X402_PAY_TO,
       X402_NETWORK: "eip155:8453",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",

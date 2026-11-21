@@ -3,6 +3,7 @@ import {
   backfillDiscovery,
   bazaarIndexingStatus,
   buildPaymentRequired,
+  DEFAULT_X402_PAY_TO,
   handleConsult,
   loadEnv,
   PAID_TOOLS,
@@ -13,7 +14,7 @@ const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString("base64");
 
 function liveEnv() {
   return loadEnv({
-    X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
+    X402_PAY_TO: DEFAULT_X402_PAY_TO,
     PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
     DEMO_MODE: "false",
   });

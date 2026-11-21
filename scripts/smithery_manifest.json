@@ -12,7 +12,7 @@
   "authentication": {
     "type": "x402",
     "network": "eip155:8453",
-    "pay_to": "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+    "pay_to": "0x0d25A44f74868eCE53B305C97139CF4B62963410",
     "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402"
   },
   "tools": [
