@@ -360,6 +360,7 @@ export async function handleConsult(opts: {
   payment: unknown | null;
   paymentHeaderInvalid?: boolean;
   transport: "http" | "mcp";
+  resourceUrl?: string;
   fetchImpl?: typeof fetch;
 }): Promise<ConsultResult> {
   const tool = requireTool(opts.toolName);
@@ -369,6 +370,7 @@ export async function handleConsult(opts: {
     tool,
     priceUsd,
     transport: opts.transport,
+    resourceUrl: opts.resourceUrl,
   });
 
   if (tool.tier === "paid" && opts.paymentHeaderInvalid) {
