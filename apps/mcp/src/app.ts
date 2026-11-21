@@ -59,6 +59,7 @@ async function runPaid(opts: {
   payment: unknown | null;
   paymentHeaderInvalid?: boolean;
   transport: "http" | "mcp";
+  resourceUrl?: string;
 }): Promise<{ status: number; headers?: Record<string, string>; body: unknown }> {
   return handleConsult(opts);
 }
@@ -248,27 +249,54 @@ export function createOracleApp(env: OracleEnv): Express {
     res.status(result.status).json(result.body);
   });
 
-  app.get("/mcp", (req, res) => {
+  app.get("/mcp", async (req, res) => {
     const accept = String(req.header("accept") ?? "");
     if (accept.toLowerCase().includes("text/event-stream")) {
       res.set({ ...allowHeader("POST, OPTIONS"), Vary: "Accept" });
       res.status(405).json(methodNotAllowedBody("POST, OPTIONS"));
       return;
     }
-    res.set({ Vary: "Accept", "cache-control": "public, max-age=3600, stale-while-revalidate=86400" });
-    res.json({
-      ...mcpJson(env),
-      transport: "streamable-http",
-      endpoint: `${env.publicBaseUrl}/mcp`,
-      methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
-      usage:
-        "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
-      documentation: `${env.publicBaseUrl}/llms.txt`,
+    if (req.query.info === "true" || req.query.catalog === "true") {
+      res.set({ Vary: "Accept", "cache-control": "public, max-age=3600, stale-while-revalidate=86400" });
+      res.json({
+        ...mcpJson(env),
+        transport: "streamable-http",
+        endpoint: `${env.publicBaseUrl}/mcp`,
+        methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+        usage:
+          "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
+        documentation: `${env.publicBaseUrl}/llms.txt`,
+      });
+      return;
+    }
+    const result = await runPaid({
+      env,
+      toolName: "oracle_ask",
+      input: {},
+      payment: null,
+      transport: "http",
+      resourceUrl: `${env.publicBaseUrl}/mcp`,
+    });
+    if (result.headers) {
+      for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
+    }
+    res.setHeader(
+      "Access-Control-Expose-Headers",
+      "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+    );
+    res.status(402).json({
+      ...((result.body ?? {}) as Record<string, unknown>),
+      catalog: {
+        ...mcpJson(env),
+        transport: "streamable-http",
+        endpoint: `${env.publicBaseUrl}/mcp`,
+        methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+      },
     });
   });
 
   app.post("/mcp", async (req, res) => {
-    const body = req.body as {
+    const body = (req.body ?? {}) as {
       jsonrpc?: string;
       id?: unknown;
       method?: string;
@@ -278,6 +306,25 @@ export function createOracleApp(env: OracleEnv): Express {
         _meta?: Record<string, unknown>;
       };
     };
+    if (!body.jsonrpc || !body.method) {
+      const result = await runPaid({
+        env,
+        toolName: "oracle_ask",
+        input: {},
+        payment: null,
+        transport: "http",
+        resourceUrl: `${env.publicBaseUrl}/mcp`,
+      });
+      if (result.headers) {
+        for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
+      }
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+      );
+      res.status(402).json(result.body);
+      return;
+    }
     const id = body.id ?? null;
     if (body.method === "initialize") {
       res.json({
@@ -333,6 +380,13 @@ export function createOracleApp(env: OracleEnv): Express {
         transport: "mcp",
       });
       if (result.status === 402) {
+        if (result.headers) {
+          for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
+        }
+        res.setHeader(
+          "Access-Control-Expose-Headers",
+          "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+        );
         res.json({
           jsonrpc: "2.0",
           id,

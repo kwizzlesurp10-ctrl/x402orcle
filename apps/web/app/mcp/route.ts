@@ -64,13 +64,15 @@ export function OPTIONS() {
     status: 204,
     headers: {
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers": "content-type, authorization, payment-signature, x-payment",
+      "access-control-allow-methods": "GET, POST, OPTIONS, HEAD",
+      "access-control-allow-headers": "content-type, authorization, payment-signature, x-payment, x402-version",
+      "access-control-expose-headers":
+        "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
     },
   });
 }
 
-export function GET(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const accept = req.headers.get("accept") ?? "";
   if (accept.toLowerCase().includes("text/event-stream")) {
     return NextResponse.json(methodNotAllowedBody("POST, OPTIONS"), {
@@ -84,21 +86,55 @@ export function GET(req: NextRequest) {
   }
 
   const env = oracleEnv();
+  const url = new URL(req.url);
+  if (url.searchParams.get("info") === "true" || url.searchParams.get("catalog") === "true") {
+    return NextResponse.json(
+      {
+        ...mcpJson(env),
+        transport: "streamable-http",
+        endpoint: `${env.publicBaseUrl}/mcp`,
+        methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+        usage:
+          "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
+        documentation: `${env.publicBaseUrl}/llms.txt`,
+      },
+      {
+        headers: {
+          "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
+          Vary: "Accept",
+          "access-control-allow-origin": "*",
+        },
+      },
+    );
+  }
+
+  // Dual-mode x402 probe: if hit via GET as an x402 endpoint, emit 402 challenge with catalog embedded
+  const result = await handleConsult({
+    env,
+    toolName: "oracle_ask",
+    input: {},
+    payment: null,
+    transport: "http",
+    resourceUrl: `${env.publicBaseUrl}/mcp`,
+  });
+
   return NextResponse.json(
     {
-      ...mcpJson(env),
-      transport: "streamable-http",
-      endpoint: `${env.publicBaseUrl}/mcp`,
-      methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
-      usage:
-        "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
-      documentation: `${env.publicBaseUrl}/llms.txt`,
+      ...((result.body ?? {}) as Record<string, unknown>),
+      catalog: {
+        ...mcpJson(env),
+        transport: "streamable-http",
+        endpoint: `${env.publicBaseUrl}/mcp`,
+        methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+      },
     },
     {
+      status: 402,
       headers: {
-        "cache-control": "public, max-age=3600, stale-while-revalidate=86400",
-        Vary: "Accept",
+        ...(result.headers ?? {}),
         "access-control-allow-origin": "*",
+        "access-control-expose-headers":
+          "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
       },
     },
   );
@@ -112,6 +148,27 @@ export async function POST(req: NextRequest) {
     method?: string;
     params?: { name?: string; arguments?: Record<string, unknown>; _meta?: Record<string, unknown> };
   };
+
+  // Dual-mode x402 probe: if request lacks JSON-RPC method, emit 402 challenge
+  if (!body.jsonrpc || !body.method) {
+    const result = await handleConsult({
+      env,
+      toolName: "oracle_ask",
+      input: {},
+      payment: null,
+      transport: "http",
+      resourceUrl: `${env.publicBaseUrl}/mcp`,
+    });
+    return NextResponse.json(result.body, {
+      status: 402,
+      headers: {
+        ...(result.headers ?? {}),
+        "access-control-allow-origin": "*",
+        "access-control-expose-headers":
+          "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+      },
+    });
+  }
   const id = body.id ?? null;
   if (body.method === "initialize") {
     return NextResponse.json(
@@ -193,7 +250,14 @@ export async function POST(req: NextRequest) {
         },
         {
           status: 200,
-          headers: { "access-control-allow-origin": "*" },
+          headers: {
+            "access-control-allow-origin": "*",
+            "access-control-expose-headers":
+              "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+            ...(result.headers?.["PAYMENT-REQUIRED"]
+              ? { "PAYMENT-REQUIRED": result.headers["PAYMENT-REQUIRED"] }
+              : {}),
+          },
         },
       );
     }

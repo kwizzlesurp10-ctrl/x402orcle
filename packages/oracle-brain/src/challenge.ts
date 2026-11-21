@@ -90,12 +90,14 @@ export function buildPaymentRequired(opts: {
   tool: OracleToolSpec;
   priceUsd: number;
   transport?: "http" | "mcp";
+  resourceUrl?: string;
 }): PaymentRequired {
   const transport = opts.transport ?? "http";
   const url =
-    transport === "mcp"
+    opts.resourceUrl ??
+    (transport === "mcp"
       ? `mcp://tool/${opts.tool.name}`
-      : `${opts.env.publicBaseUrl}${opts.tool.httpPath}`;
+      : `${opts.env.publicBaseUrl}${opts.tool.httpPath}`);
   return {
     x402Version: 2,
     error: "PAYMENT_REQUIRED",
