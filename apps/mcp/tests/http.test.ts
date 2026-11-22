@@ -138,21 +138,25 @@ describe("oracle http", () => {
     expect(res.headers["payment-required"]).toBeTruthy();
   });
 
-  it("MCP raw probe returns 402 with PAYMENT-REQUIRED header", async () => {
+  it("GET /mcp serves JSON card and raw POST or ?probe=402 returns 402", async () => {
     const postProbe = await request(app).post("/mcp").send({});
     expect(postProbe.status).toBe(402);
     expect(postProbe.headers["payment-required"]).toBeTruthy();
     expect(postProbe.body.x402Version).toBe(2);
     expect(postProbe.body.resource.url).toBe(`${env.publicBaseUrl}/mcp`);
 
-    const getProbe = await request(app).get("/mcp");
-    expect(getProbe.status).toBe(402);
-    expect(getProbe.headers["payment-required"]).toBeTruthy();
-    expect(getProbe.body.catalog).toBeDefined();
+    const getCard = await request(app).get("/mcp");
+    expect(getCard.status).toBe(200);
+    expect(getCard.body.transport).toBe("streamable-http");
 
     const getCatalog = await request(app).get("/mcp?info=true");
     expect(getCatalog.status).toBe(200);
     expect(getCatalog.body.transport).toBe("streamable-http");
+
+    const getProbe = await request(app).get("/mcp?probe=402");
+    expect(getProbe.status).toBe(402);
+    expect(getProbe.headers["payment-required"]).toBeTruthy();
+    expect(getProbe.body.catalog).toBeDefined();
   });
 
   it("landing has JSON-LD and thesis", async () => {

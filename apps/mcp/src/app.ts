@@ -256,42 +256,42 @@ export function createOracleApp(env: OracleEnv): Express {
       res.status(405).json(methodNotAllowedBody("POST, OPTIONS"));
       return;
     }
-    if (req.query.info === "true" || req.query.catalog === "true") {
-      res.set({ Vary: "Accept", "cache-control": "public, max-age=3600, stale-while-revalidate=86400" });
-      res.json({
-        ...mcpJson(env),
-        transport: "streamable-http",
-        endpoint: `${env.publicBaseUrl}/mcp`,
-        methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
-        usage:
-          "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
-        documentation: `${env.publicBaseUrl}/llms.txt`,
+    if (req.query.probe === "402") {
+      const result = await runPaid({
+        env,
+        toolName: "oracle_ask",
+        input: {},
+        payment: null,
+        transport: "http",
+        resourceUrl: `${env.publicBaseUrl}/mcp`,
+      });
+      if (result.headers) {
+        for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
+      }
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
+      );
+      res.status(402).json({
+        ...((result.body ?? {}) as Record<string, unknown>),
+        catalog: {
+          ...mcpJson(env),
+          transport: "streamable-http",
+          endpoint: `${env.publicBaseUrl}/mcp`,
+          methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+        },
       });
       return;
     }
-    const result = await runPaid({
-      env,
-      toolName: "oracle_ask",
-      input: {},
-      payment: null,
-      transport: "http",
-      resourceUrl: `${env.publicBaseUrl}/mcp`,
-    });
-    if (result.headers) {
-      for (const [k, v] of Object.entries(result.headers)) res.setHeader(k, v);
-    }
-    res.setHeader(
-      "Access-Control-Expose-Headers",
-      "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
-    );
-    res.status(402).json({
-      ...((result.body ?? {}) as Record<string, unknown>),
-      catalog: {
-        ...mcpJson(env),
-        transport: "streamable-http",
-        endpoint: `${env.publicBaseUrl}/mcp`,
-        methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
-      },
+    res.set({ Vary: "Accept", "cache-control": "public, max-age=3600, stale-while-revalidate=86400" });
+    res.json({
+      ...mcpJson(env),
+      transport: "streamable-http",
+      endpoint: `${env.publicBaseUrl}/mcp`,
+      methods_supported: ["initialize", "tools/list", "tools/call", "notifications/initialized"],
+      usage:
+        "Send HTTP POST with JSON-RPC 2.0 payload to this endpoint. GET returns this catalog (not Server-Sent Events).",
+      documentation: `${env.publicBaseUrl}/llms.txt`,
     });
   });
 

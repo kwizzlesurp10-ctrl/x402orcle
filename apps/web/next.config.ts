@@ -7,6 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   transpilePackages: ["@x402orcle/oracle-brain"],
   poweredByHeader: false,
+  skipTrailingSlashRedirect: true,
   outputFileTracingRoot: path.join(here, "../.."),
   async headers() {
     return [
