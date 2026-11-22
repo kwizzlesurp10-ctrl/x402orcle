@@ -118,9 +118,10 @@ describe("oracle http", () => {
       params: { name: "nope", arguments: {} },
     });
     expect(nope.status).toBe(200);
-    expect(nope.body.error.code).toBe(-32602);
-    expect(nope.body.error.message).toBe("UNKNOWN_TOOL:nope");
-    expect(nope.body.result).toBeUndefined();
+    expect(nope.body.error).toBeUndefined();
+    expect(nope.body.result.isError).toBe(true);
+    expect(Array.isArray(nope.body.result.content)).toBe(true);
+    expect(nope.body.result.content[0].text).toContain("UNKNOWN_TOOL:nope");
   });
 
   it("MCP unpaid tool returns PaymentRequired structuredContent and PAYMENT-REQUIRED header", async () => {

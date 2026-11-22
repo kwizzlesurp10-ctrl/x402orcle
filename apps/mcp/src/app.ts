@@ -368,7 +368,10 @@ export function createOracleApp(env: OracleEnv): Express {
         res.json({
           jsonrpc: "2.0",
           id,
-          error: { code: -32602, message: `UNKNOWN_TOOL:${name}` },
+          result: {
+            isError: true,
+            content: [{ type: "text", text: JSON.stringify({ error: `UNKNOWN_TOOL:${name}` }) }],
+          },
         });
         return;
       }

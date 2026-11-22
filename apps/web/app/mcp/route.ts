@@ -223,7 +223,10 @@ export async function POST(req: NextRequest) {
         {
           jsonrpc: "2.0",
           id,
-          error: { code: -32602, message: `UNKNOWN_TOOL:${name}` },
+          result: {
+            isError: true,
+            content: [{ type: "text", text: JSON.stringify({ error: `UNKNOWN_TOOL:${name}` }) }],
+          },
         },
         {
           headers: { "access-control-allow-origin": "*" },
