@@ -338,6 +338,10 @@ export function createOracleApp(env: OracleEnv): Express {
       });
       return;
     }
+    if (body.method === "ping") {
+      res.json({ jsonrpc: "2.0", id, result: {} });
+      return;
+    }
     if (body.method === "tools/list" || body.method === "notifications/initialized") {
       if (body.method === "notifications/initialized") {
         res.status(202).end();
@@ -397,6 +401,7 @@ export function createOracleApp(env: OracleEnv): Express {
             isError: true,
             structuredContent: result.body,
             content: [{ type: "text", text: JSON.stringify(result.body) }],
+            _meta: { "x402/payment-required": result.body },
           },
         });
         return;

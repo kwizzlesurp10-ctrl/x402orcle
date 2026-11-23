@@ -124,7 +124,16 @@ describe("oracle http", () => {
     expect(nope.body.result.content[0].text).toContain("UNKNOWN_TOOL:nope");
   });
 
-  it("MCP unpaid tool returns PaymentRequired structuredContent and PAYMENT-REQUIRED header", async () => {
+  it("MCP unpaid tool returns PaymentRequired structuredContent, _meta, and PAYMENT-REQUIRED header", async () => {
+    const ping = await request(app).post("/mcp").send({
+      jsonrpc: "2.0",
+      id: 0,
+      method: "ping",
+      params: {},
+    });
+    expect(ping.status).toBe(200);
+    expect(ping.body).toEqual({ jsonrpc: "2.0", id: 0, result: {} });
+
     const res = await request(app)
       .post("/mcp")
       .send({
@@ -136,6 +145,7 @@ describe("oracle http", () => {
     expect(res.status).toBe(200);
     expect(res.body.result.isError).toBe(true);
     expect(res.body.result.structuredContent.x402Version).toBe(2);
+    expect(res.body.result._meta?.["x402/payment-required"]?.x402Version).toBe(2);
     expect(res.headers["payment-required"]).toBeTruthy();
   });
 

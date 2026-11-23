@@ -65,7 +65,7 @@ export function OPTIONS() {
     headers: {
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET, POST, OPTIONS, HEAD",
-      "access-control-allow-headers": "content-type, authorization, payment-signature, x-payment, x402-version",
+      "access-control-allow-headers": "content-type, authorization, payment-signature, x-payment, x402-version, mcp-session-id",
       "access-control-expose-headers":
         "PAYMENT-REQUIRED, PAYMENT-RESPONSE, Payment-Required, Payment-Response, x402-version",
     },
@@ -186,6 +186,12 @@ export async function POST(req: NextRequest) {
       },
     );
   }
+  if (body.method === "ping") {
+    return NextResponse.json(
+      { jsonrpc: "2.0", id, result: {} },
+      { headers: { "access-control-allow-origin": "*" } },
+    );
+  }
   if (body.method === "tools/list" || body.method === "notifications/initialized") {
     if (body.method === "notifications/initialized") {
       return new NextResponse(null, {
@@ -249,6 +255,7 @@ export async function POST(req: NextRequest) {
             isError: true,
             structuredContent: result.body,
             content: [{ type: "text", text: JSON.stringify(result.body) }],
+            _meta: { "x402/payment-required": result.body },
           },
         },
         {
