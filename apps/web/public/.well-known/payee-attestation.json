@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "authority": {
+    "name": "Keith S.",
+    "organization": "kwizzlesurp.com · Sevtech · Dragon&PandaDuo",
+    "website": "https://kwizzlesurp.com",
+    "contact": "kwizzlesurp10@gmail.com"
+  },
+  "declaration": "This document cryptographically asserts the authoritative and sole canonical payee wallet for all x402 services operated under the kwizzlesurp.com umbrella.",
+  "canonicalPayee": {
+    "address": "0x0d25A44f74868eCE53B305C97139CF4B62963410",
+    "type": "Coinbase Base Account (EVM)",
+    "verificationMethod": "EIP-55 Checksummed",
+    "supportedChains": [
+      {
+        "caip2": "eip155:8453",
+        "name": "Base Mainnet",
+        "usdcContract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "decimals": 6
+      },
+      {
+        "caip2": "eip155:84532",
+        "name": "Base Sepolia Testnet",
+        "usdcContract": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        "decimals": 6
+      }
+    ]
+  },
+  "dualRails": {
+    "lightning": {
+      "networks": [
+        "lightning:mainnet",
+        "lightning:testnet"
+      ],
+      "unit": "msat / sat"
+    }
+  },
+  "trustGuarantees": {
+    "singlePayeeEnforced": true,
+    "dsseAttestation": true,
+    "hashGuarded": true,
+    "zeroLegacyPayeeExposure": true
+  },
+  "activeNodes": [
+    "https://x402orcle.vercel.app",
+    "https://sentinel.kwizzlesurp.com",
+    "https://civicpulse-402.vercel.app",
+    "https://a2a-x402-oracle.vercel.app",
+    "https://apexseo-geo-mcp.vercel.app",
+    "https://x402-swarm-deploy.vercel.app"
+  ],
+  "issuedAt": "2026-11-27T00:00:00Z"
+}

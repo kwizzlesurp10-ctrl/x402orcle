@@ -1,0 +1,14 @@
+# Kwizzlesurp x402 Security & Payee Verification (RFC 9116)
+Contact: mailto:kwizzlesurp10@gmail.com
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://x402orcle.vercel.app/.well-known/security.txt
+Policy: https://x402orcle.vercel.app
+Acknowledgments: https://x402orcle.vercel.app/.well-known/x402
+
+# Canonical Settlement Authority
+Canonical-Payee: 0x0d25A44f74868eCE53B305C97139CF4B62963410
+Payee-Type: Coinbase Base Account (EIP-55 EVM)
+Supported-Networks: eip155:8453 (Base Mainnet)
+Accepted-Asset: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 (USDC on Base)
+Attestation: https://x402orcle.vercel.app/.well-known/payee-attestation.json
