@@ -18,7 +18,7 @@ export function oracleEnv(): OracleEnv {
     X402_PAY_TO:
       process.env.X402_PAY_TO ||
       process.env.X402_PAY_TO_ADDRESS ||
-      "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      "0x0d25A44f74868eCE53B305C97139CF4B62963410",
     DEMO_MODE: process.env.DEMO_MODE ?? "true",
     PUBLIC_BASE_URL: publicBase(),
   });

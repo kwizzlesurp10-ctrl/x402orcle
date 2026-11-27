@@ -22,7 +22,7 @@ import {
 } from "../src/index.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+  X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
   X402_NETWORK: "eip155:8453",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
@@ -41,7 +41,7 @@ describe("env", () => {
 
   it("accepts address and flags seller leak", () => {
     const e = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       EVM_PRIVATE_KEY: "0x" + "11".repeat(32),
       DEMO_MODE: "true",
     });
@@ -51,13 +51,13 @@ describe("env", () => {
 
   it("refuses demo mode on https unless DEMO_ALLOW_PUBLIC", () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
     });
     expect(live.demoMode).toBe(false);
     const allowed = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       DEMO_MODE: "true",
       DEMO_ALLOW_PUBLIC: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
@@ -271,7 +271,7 @@ describe("landing consult copy", () => {
 
   it("https public host never advertises demo mint", () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
     });
@@ -321,7 +321,7 @@ describe("cdp jwt", () => {
 describe("live facilitator consult", () => {
   it("401 verify surfaces FACILITATOR_AUTH_REQUIRED without serving wisdom", async () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
     });
@@ -345,7 +345,7 @@ describe("live facilitator consult", () => {
   it("sends CDP Bearer JWT on verify and settle when keys are set", async () => {
     const apiKeySecret = Buffer.concat([Buffer.alloc(32, 1), Buffer.alloc(32, 2)]).toString("base64");
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
       CDP_API_KEY_ID: "00000000-0000-0000-0000-000000000001",
@@ -382,7 +382,7 @@ describe("live facilitator consult", () => {
 
   it("401 on CDP then fallback facilitator settles", async () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
       X402_FACILITATOR_URL: "https://api.cdp.coinbase.com/platform/v2/x402",
@@ -421,7 +421,7 @@ describe("live facilitator consult", () => {
 
   it("successful verify+settle returns live receipt", async () => {
     const live = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
       DEMO_MODE: "false",
     });

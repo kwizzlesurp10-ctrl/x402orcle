@@ -4,7 +4,7 @@ import { loadEnv } from "@x402orcle/oracle-brain";
 import { createOracleApp } from "../src/app.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+  X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
   X402_NETWORK: "eip155:8453",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "http://127.0.0.1:4021",
@@ -76,7 +76,7 @@ describe("oracle http", () => {
   it("llms.txt and agent-card are crawlable", async () => {
     const llms = await request(app).get("/llms.txt");
     expect(llms.status).toBe(200);
-    expect(llms.text).toContain("0xAB745e5F576667037696e78ba7dA28E193E4423D");
+    expect(llms.text).toContain("0x0d25A44f74868eCE53B305C97139CF4B62963410");
     const card = await request(app).get("/.well-known/agent-card.json");
     expect(card.body.payments.rails[0].id).toBe("x402");
     const x402 = await request(app).get("/.well-known/x402");
@@ -228,7 +228,7 @@ describe("oracle http", () => {
 
   it("https public host refuses demo mint", async () => {
     const liveEnv = loadEnv({
-      X402_PAY_TO: "0xAB745e5F576667037696e78ba7dA28E193E4423D",
+      X402_PAY_TO: "0x0d25A44f74868eCE53B305C97139CF4B62963410",
       X402_NETWORK: "eip155:8453",
       DEMO_MODE: "true",
       PUBLIC_BASE_URL: "https://x402orcle.vercel.app",

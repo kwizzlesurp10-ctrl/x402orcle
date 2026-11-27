@@ -9,14 +9,14 @@ import {
 } from "../src/index.js";
 
 const env = loadEnv({
-  X402_PAY_TO: "0xab745e5f576667037696e78ba7da28e193e4423d",
+  X402_PAY_TO: "0x0d25a44f74868ece53b305c97139cf4b62963410",
   DEMO_MODE: "true",
   PUBLIC_BASE_URL: "https://x402orcle.vercel.app",
 });
 
 describe("audit hardening", () => {
   it("EIP-55 checksum preserves address identity", () => {
-    const raw = "0xab745e5f576667037696e78ba7da28e193e4423d";
+    const raw = "0x0d25a44f74868ece53b305c97139cf4b62963410";
     const sum = toChecksumAddress(raw);
     expect(sum.toLowerCase()).toBe(raw.toLowerCase());
     expect(sum).toMatch(/^0x[0-9a-fA-F]{40}$/);
