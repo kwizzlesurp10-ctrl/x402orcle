@@ -209,11 +209,10 @@ describe("oracle http", () => {
     expect(mint.headers.allow).toBe("POST, OPTIONS");
   });
 
-  it("GET /mcp with SSE Accept returns 405 and Vary Accept", async () => {
+  it("GET /mcp with pure SSE Accept returns 200 and text/event-stream", async () => {
     const res = await request(app).get("/mcp").set("Accept", "text/event-stream");
-    expect(res.status).toBe(405);
-    expect(res.headers.allow).toBe("POST, OPTIONS");
-    expect(res.headers.vary).toBe("Accept");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
   });
 
   it("malformed PAYMENT-SIGNATURE returns 402 INVALID_PAYMENT_SIGNATURE", async () => {

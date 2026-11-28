@@ -251,9 +251,13 @@ export function createOracleApp(env: OracleEnv): Express {
 
   app.get("/mcp", async (req, res) => {
     const accept = String(req.header("accept") ?? "");
-    if (accept.toLowerCase().includes("text/event-stream")) {
-      res.set({ ...allowHeader("POST, OPTIONS"), Vary: "Accept" });
-      res.status(405).json(methodNotAllowedBody("POST, OPTIONS"));
+    if (accept.toLowerCase().includes("text/event-stream") && !accept.toLowerCase().includes("application/json")) {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(`event: endpoint\ndata: ${env.publicBaseUrl}/mcp\n\n`);
       return;
     }
     if (req.query.probe === "402") {
