@@ -19,3 +19,4 @@ secrets/
 ledger/*.jsonl
 .venv
 *.tsbuildinfo
+.env*
